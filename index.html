@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>遊んで学ぼう日本語</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Yuji+Mai&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Zen Maru Gothic', sans-serif; min-height: 100vh; padding: 48px 16px; color: #2a1810;
+      background: #f4e9d4 radial-gradient(circle at 50% -20%, #fdf6e3 0, #f4e9d4 60%); }
+    .brush { font-family: 'Yuji Mai', 'Mochiy Pop One', serif; }
+    rt { font-size: .5em; }
+    header { text-align: center; margin-bottom: 40px; }
+    .sun { width: 72px; height: 72px; border-radius: 50%; background: #c1121f; margin: 0 auto 18px; }
+    h1 { font-size: clamp(2.2rem, 8vw, 3.6rem); color: #1d3557; letter-spacing: .08em; }
+    header p { margin-top: 8px; font-size: 1.05rem; color: #8a5a2b; }
+    .list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; max-width: 760px; margin: 0 auto; }
+    a.game { display: block; text-decoration: none; color: inherit; background: #fffdf6; border: 4px solid #1d3557; border-radius: 18px;
+      overflow: hidden; transition: transform .2s, box-shadow .2s; }
+    a.game:hover, a.game:focus-visible { transform: translateY(-4px); box-shadow: 0 10px 0 #1d3557; outline: none; }
+    .thumb { height: 180px; display: flex; align-items: center; justify-content: center; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb svg { width: 80%; height: auto; }
+    .ghost { background: #0a0612; }
+    .sushi { background: repeating-linear-gradient(90deg, #b8bfc6 0 58px, #8d969e 58px 62px); }
+    .inu { background: linear-gradient(#3c1f4f, #c06c84); font-size: 5rem; }
+    .info { padding: 16px 18px 20px; }
+    .info h2 { font-size: 1.8rem; color: #1d3557; }
+    .info p { margin-top: 6px; line-height: 1.6; }
+    .tag { display: inline-block; margin-top: 10px; font-size: .85rem; background: #e9c46a; border-radius: 99px; padding: 2px 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="sun" aria-hidden="true"></div>
+    <h1 class="brush"><ruby>遊<rt>あそ</rt></ruby>んで<ruby>学<rt>まな</rt></ruby>ぼう<ruby>日本語<rt>にほんご</rt></ruby></h1>
+    <p>ゲームを<ruby>選<rt>えら</rt></ruby>んでね</p>
+  </header>
+
+  <main class="list">
+    <a class="game" href="ghosts-walk.html">
+      <div class="thumb ghost"><img src="images/yurei.avif" alt=""></div>
+      <div class="info">
+        <h2 class="brush">おばけ<ruby>道中<rt>どうちゅう</rt></ruby></h2>
+        <p><ruby>日本<rt>にほん</rt></ruby>のおばけの<ruby>世界<rt>せかい</rt></ruby>を<ruby>探検<rt>たんけん</rt></ruby>しよう！</p>
+        <span class="tag">こわい</span>
+      </div>
+    </a>
+
+    <a class="game" href="sushi-go-round.html">
+      <div class="thumb sushi">
+        <svg viewBox="0 0 220 140" aria-hidden="true">
+          <ellipse cx="110" cy="112" rx="98" ry="22" fill="#c1121f"/><ellipse cx="110" cy="108" rx="84" ry="16" fill="#fffdf6"/>
+          <rect x="52" y="70" width="116" height="38" rx="19" fill="#fbf7ea" stroke="#e5dcc4" stroke-width="2"/>
+          <path d="M40 82 Q58 48 110 50 Q162 48 182 80 Q170 92 110 88 Q50 92 40 82Z" fill="#f4845f" stroke="#fde2d4" stroke-width="2"/>
+          <path d="M68 56 q-8 14 -4 28 M94 56 q-8 14 -4 28 M120 56 q-8 14 -4 28 M146 56 q-8 14 -4 28" stroke="#fde2d4" stroke-width="5" fill="none" opacity=".75"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2 class="brush"><ruby>回転寿司<rt>かいてんずし</rt></ruby></h2>
+        <p><ruby>料理<rt>りょうり</rt></ruby>の<ruby>名前<rt>なまえ</rt></ruby>を<ruby>漢字<rt>かんじ</rt></ruby>で<ruby>入力<rt>にゅうりょく</rt></ruby>して<ruby>食<rt>た</rt></ruby>べよう！</p>
+        <span class="tag">漢字</span>
+      </div>
+    </a>
+
+    <a class="game" href="inuyasha.html">
+      <div class="thumb inu"><img src="images/inuyasha.svg" alt="" style="object-fit: contain; padding: 8px"></div>
+      <div class="info">
+        <h2 class="brush"><ruby>犬夜叉<rt>いぬやしゃ</rt></ruby></h2>
+        <p><ruby>妖怪<rt>ようかい</rt></ruby>の<ruby>漢字<rt>かんじ</rt></ruby>を<ruby>読<rt>よ</rt></ruby>んで<ruby>倒<rt>たお</rt></ruby>そう！</p>
+        <span class="tag">読み</span>
+      </div>
+    </a>
+  </main>
+</body>
+</html>

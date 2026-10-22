@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>おばけ道中</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Yuji+Mai&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: #0a0612; color: #fff; }
+    body { font-family: 'Zen Maru Gothic', sans-serif; }
+    .pop { font-family: 'Mochiy Pop One', sans-serif; }
+    .brush { font-family: 'Yuji Mai', 'Mochiy Pop One', serif; }
+    rt { font-size: .5em; }
+
+    /* ---------- SKY & FOG (2D, đổi theo khu vực) ---------- */
+    .layers { position: fixed; inset: 0; pointer-events: none; }
+    .lay { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; }
+    .lay.on { opacity: 1; }
+    .moon { position: absolute; border-radius: 50%; }
+    .cartouche { position: absolute; top: 64px; left: 3%; display: flex; gap: 10px; }
+    .cartouche div { background: #e8dcc0; color: #1a1410; border: 3px solid #0c0a08; outline: 2px solid #a8322a; outline-offset: -8px;
+      writing-mode: vertical-rl; font-family: 'Yuji Mai', serif; font-size: 1.6rem; padding: 14px 8px; }
+    .cartouche div + div { font-size: 1.1rem; height: fit-content; }
+    .tube { position: absolute; top: 8%; left: 30%; right: 30%; height: 16px; border-radius: 8px; background: #f8fff4;
+      box-shadow: 0 0 60px 30px rgba(248, 255, 244, .25); animation: tube 5s infinite; }
+    @keyframes tube { 0%, 100% { opacity: 1; } 8% { opacity: .2; } 10% { opacity: 1; } 12% { opacity: .3; } 14% { opacity: 1; } 70% { opacity: 1; } 71% { opacity: .1; } 74% { opacity: 1; } }
+
+    /* ---------- 3D WORLD ---------- */
+    #world { position: fixed; inset: 0; perspective: 600px; perspective-origin: 50% 50%; overflow: hidden; }
+    #look, #bob { position: absolute; inset: 0; transform-style: preserve-3d; }
+    #look { transition: transform .5s ease-out; }
+    #scene { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
+    .o { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+    .o svg { display: block; overflow: visible; }
+    .walking #bob { animation: walkbob .55s ease-in-out infinite; }
+    @keyframes walkbob { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-4px, 9px); } 50% { transform: translate(0, 0); } 75% { transform: translate(4px, 9px); } }
+    .shake #world { animation: shake .4s; }
+    @keyframes shake { 20% { transform: translate(-14px, 6px); } 40% { transform: translate(12px, -8px); } 60% { transform: translate(-8px, 4px); } 80% { transform: translate(6px, 0); } }
+
+    .ghost { pointer-events: auto; cursor: pointer; opacity: .22; filter: blur(3px) brightness(.6);
+      transition: transform 1.4s cubic-bezier(.2, .8, .3, 1), opacity 1.4s, filter 1.4s; }
+    .ghost.awake { opacity: 1; filter: drop-shadow(0 0 30px rgba(0, 0, 0, .8)); }
+    .ghost.angry svg { animation: jolt .5s ease; filter: drop-shadow(0 0 30px rgba(255, 0, 40, .9)); }
+    .ghost.poke svg { animation: jolt .5s ease; }
+    @keyframes jolt { 20% { transform: scale(1.15) translateY(-10px); } 40% { transform: scale(1.1) rotate(-4deg); } 60% { transform: scale(1.12) rotate(4deg); } }
+
+    /* SVG scene animations */
+    .twinkle { animation: twinkle 3s ease-in-out infinite; }
+    @keyframes twinkle { 50% { opacity: .2; } }
+    .flame { animation: flame 2.2s ease-in-out infinite; }
+    @keyframes flame { 0%, 100% { opacity: 1; } 40% { opacity: .75; } 45% { opacity: .95; } 70% { opacity: .6; } }
+    .sway { animation: sway 4s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+    @keyframes sway { 50% { transform: skewX(4deg); } }
+    .blink-a { animation: blinkL 1s steps(1) infinite; }
+    .blink-b { animation: blinkL 1s steps(1) infinite .5s; }
+    @keyframes blinkL { 50% { fill: #3a0a0a; } }
+
+    /* character idle */
+    .eye { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+    @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+    @keyframes bob { 50% { transform: translateY(-14px); } }
+    .body { animation: bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .c-yurei .body { animation: drift-g 5s ease-in-out infinite; }
+    @keyframes drift-g { 25% { transform: translate(-6px, -14px) rotate(-3deg); } 75% { transform: translate(6px, -6px) rotate(3deg); } }
+    .tail, .hairs { animation: tailw 2s ease-in-out infinite; transform-box: fill-box; transform-origin: top; }
+    @keyframes tailw { 50% { transform: skewX(7deg); } }
+    .breath circle { animation: breath 2.4s ease-out infinite; transform-box: fill-box; }
+    .breath circle:nth-child(2) { animation-delay: .3s; }
+    .breath circle:nth-child(3) { animation-delay: .6s; }
+    @keyframes breath { 0% { opacity: 0; transform: translate(0, 0); } 30% { opacity: .9; } 100% { opacity: 0; transform: translate(50px, -10px) scale(1.8); } }
+    /* テケテケ bò bằng hai tay: tay trái/phải thay nhau nhấc lên rồi đập xuống, thân nhún theo */
+    .c-teke .body { animation: crawl .9s ease-in-out infinite; }
+    @keyframes crawl { 0%, 50%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-10px) rotate(-4deg); } 75% { transform: translateY(-10px) rotate(4deg); } }
+    .armL, .armR { transform-box: view-box; animation: armL .9s ease-in-out infinite; transform-origin: 70px 128px; }
+    .armR { animation-name: armR; transform-origin: 130px 128px; }
+    @keyframes armL { 0%, 50%, 100% { transform: rotate(0); } 25% { transform: rotate(48deg); } }
+    @keyframes armR { 0%, 50%, 100% { transform: rotate(0); } 75% { transform: rotate(-48deg); } }
+    .mist { animation: mistd 5s ease-in-out infinite alternate; }
+    @keyframes mistd { to { transform: translateX(12px); } }
+    .drip { animation: drip 2s ease-in infinite; transform-box: fill-box; transform-origin: top; }
+    .drip:nth-of-type(2n) { animation-delay: .7s; }
+    @keyframes drip { 0% { transform: scaleY(.3); } 80% { transform: scaleY(1.2); } 100% { transform: scaleY(.3); } }
+    .speed line { animation: speed .5s linear infinite; }
+    .speed line:nth-child(2) { animation-delay: .15s; }
+    .speed line:nth-child(3) { animation-delay: .3s; }
+    @keyframes speed { 0% { opacity: 0; transform: translateX(20px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateX(-30px); } }
+    .reach { animation: reach 2.6s ease-in-out infinite; transform-box: view-box; transform-origin: 132px 100px; }
+    @keyframes reach { 50% { transform: rotate(-9deg); } }
+    .jaw { animation: chatter .5s steps(2) infinite; }
+    @keyframes chatter { 50% { transform: translateY(9px); } }
+    .glow { animation: glowp 1.2s ease-in-out infinite alternate; }
+    @keyframes glowp { from { opacity: .45; } }
+    .mask { transition: transform .4s ease-in, opacity .4s; transform-box: fill-box; }
+    .reveal .mask { transform: translate(30px, 80px) rotate(30deg); opacity: 0; }
+    .cape { animation: cape 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+    @keyframes cape { 50% { transform: skewX(-5deg) scaleX(1.05); } }
+
+    /* ---------- PARTICLES ---------- */
+    #particles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .pt { position: absolute; border-radius: 50%; }
+    .pt.snow { top: -12px; background: #fff; animation: fall linear infinite; }
+    .pt.orb { bottom: -30px; background: radial-gradient(circle, #d4f1ff, #5fb8ff 60%, transparent 70%); filter: blur(1px); animation: rise linear infinite; }
+    .pt.firefly { background: #c8ff8a; box-shadow: 0 0 12px 4px rgba(170, 255, 120, .6); animation: drift ease-in-out infinite alternate; }
+    .pt.petal { top: -12px; background: #ffc4d6; border-radius: 80% 0 80% 0; animation: fall linear infinite; }
+    .pt.ash { top: -12px; background: rgba(200, 190, 180, .7); animation: fall linear infinite; }
+    .pt.dust { bottom: -10px; background: rgba(255, 230, 200, .8); animation: rise linear infinite; }
+    @keyframes fall { to { transform: translate(60px, 110vh) rotate(360deg); } }
+    @keyframes rise { 0% { opacity: 0; } 15% { opacity: .9; } 100% { transform: translate(-40px, -110vh); opacity: 0; } }
+    @keyframes drift { 0% { transform: translate(0, 0); opacity: .2; } 100% { transform: translate(40px, -60px); opacity: 1; } }
+
+    #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+    #flash.go { animation: flash .9s; }
+    @keyframes flash { 0% { opacity: .8; } 15% { opacity: 0; } 25% { opacity: .5; } 40%, 100% { opacity: 0; } }
+    #redflash { position: fixed; inset: 0; background: radial-gradient(ellipse, transparent 30%, rgba(200, 0, 30, .7)); opacity: 0; pointer-events: none; }
+    #redflash.go { animation: redf .7s; }
+    @keyframes redf { 0% { opacity: 1; } 100% { opacity: 0; } }
+    .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0, 0, 0, .6)); }
+
+    /* ---------- UI ---------- */
+    .bubble { position: fixed; left: calc(50% - 90px); top: calc(50% - 250px); z-index: 6; transform: translate(-50%, -100%) scale(0); transform-origin: bottom center;
+      background: #f4efe6; color: #2a0d14; padding: 12px 20px; border-radius: 18px; text-align: center; white-space: nowrap;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, .35); transition: transform .3s cubic-bezier(.34, 1.56, .64, 1); }
+    .bubble::after { content: ""; position: absolute; bottom: -12px; left: 50%; margin-left: -10px; border: 10px solid transparent; border-top-color: #f4efe6; border-bottom: 0; }
+    .bubble.show { transform: translate(-50%, -100%) scale(1); }
+    .bubble b { display: block; font-size: 1.4rem; color: #8a0e22; }
+
+    .card { position: fixed; right: 3vw; top: 50%; z-index: 5; width: min(42vw, 520px); max-height: 86vh; overflow-y: auto;
+      background: rgba(12, 6, 18, .82); backdrop-filter: blur(6px); border: 2px solid rgba(255, 255, 255, .2); border-radius: 22px;
+      padding: 24px 28px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); transform: translate(120%, -50%); transition: transform .6s cubic-bezier(.2, .9, .3, 1.1); }
+    .card.show { transform: translate(0, -50%); }
+    .card .no { display: inline-block; font-size: .9rem; padding: 4px 14px; border-radius: 999px; background: var(--accent); color: #12060c; font-weight: 700; }
+    .card h2 { font-size: clamp(2rem, 4vw, 3.2rem); margin: 8px 0 2px; color: var(--accent); text-shadow: 0 0 16px var(--accent), 0 4px 0 rgba(0, 0, 0, .5); font-weight: 400; }
+    .card .read { color: #d6cce6; font-size: .95rem; margin-bottom: 10px; }
+    .card p { font-weight: 500; font-size: clamp(1rem, 1.5vw, 1.2rem); line-height: 1.85; }
+    .scare { margin-top: 10px; font-size: .9rem; color: #d6cce6; }
+    .scare .off { opacity: .2; }
+    .tip { margin-top: 6px; font-size: .85rem; color: #b8a8d0; }
+    .quiz { margin-top: 16px; padding-top: 14px; border-top: 2px dashed rgba(255, 255, 255, .2); }
+    .quiz .q { font-weight: 700; font-size: 1.1rem; margin-bottom: 10px; }
+    .opts { display: grid; gap: 8px; }
+    .opts button { font: inherit; font-size: 1.05rem; text-align: left; padding: 10px 14px; border-radius: 12px; cursor: pointer; color: #fff;
+      background: rgba(255, 255, 255, .08); border: 2px solid rgba(255, 255, 255, .25); transition: background .2s, transform .15s; }
+    .opts button:hover:not(:disabled), .opts button:focus-visible { background: rgba(255, 255, 255, .18); transform: translateX(4px); }
+    .opts button kbd { font-family: inherit; display: inline-block; width: 1.6em; text-align: center; margin-right: 8px; border-radius: 6px; background: rgba(255, 255, 255, .2); }
+    .opts button.ok { background: #1f7a4a; border-color: #6dffb0; }
+    .opts button.ng { background: #7a1a26; border-color: #ff6d7d; animation: shake .4s; opacity: .6; }
+    .fb { min-height: 1.6em; margin-top: 10px; font-weight: 700; }
+    .fb.ok { color: #6dffb0; } .fb.ng { color: #ff8a9a; }
+
+    .hud { position: fixed; z-index: 4; text-shadow: 0 2px 6px #000; }
+    #ofuda { top: 16px; left: 16px; display: flex; align-items: center; gap: 6px; font-size: 1rem; }
+    #ofuda i { width: 16px; height: 30px; border-radius: 2px; background: rgba(255, 255, 255, .15); border: 1px solid rgba(255, 255, 255, .3); }
+    #ofuda i.got { background: linear-gradient(#f4ecd6 0 20%, #c8283d 20% 26%, #f4ecd6 26%); border-color: #fff; box-shadow: 0 0 10px rgba(255, 220, 150, .7); }
+    #prog { top: 16px; right: 20px; font-size: 1.1rem; }
+    #hint { bottom: 24px; left: 50%; transform: translateX(-50%); font-size: 1.15rem; background: rgba(0, 0, 0, .45); padding: 8px 20px; border-radius: 999px; white-space: nowrap; }
+    #hint:empty { display: none; }
+    #hint.pulse { animation: pulse 1.4s ease-in-out infinite; }
+    #goBtn { bottom: 16px; right: 16px; width: 64px; height: 64px; border-radius: 50%; border: 3px solid #fff; background: rgba(179, 18, 58, .7);
+      color: #fff; font-size: 1.8rem; cursor: pointer; display: none; }
+    #goBtn.on { display: block; }
+    @keyframes pulse { 50% { transform: translateX(-50%) scale(1.06); } }
+
+    .overlay { position: fixed; inset: 0; z-index: 8; display: none; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 16px; padding: 24px 16px; background: rgba(0, 0, 0, .35); }
+    .overlay.on { display: flex; }
+    #title h1 { font-size: clamp(2.4rem, 7.5vw, 5.4rem); line-height: 1.45; text-shadow: 0 0 18px rgba(255, 60, 80, .7), 0 6px 0 #3a0a14; animation: shiver 4s infinite; }
+    #title h1 rt { font-size: .3em; letter-spacing: .15em; }
+    @keyframes shiver { 0%, 90%, 100% { transform: none; } 92% { transform: translate(-3px, 1px) skewX(-3deg); } 94% { transform: translate(3px, -1px) skewX(3deg); } 96% { transform: none; } }
+    .overlay p { font-size: clamp(1.05rem, 2.4vw, 1.4rem); text-shadow: 0 2px 8px #000; }
+    .press { margin-top: 10px; font-size: clamp(1rem, 2.4vw, 1.3rem); padding: 14px 28px; border-radius: 999px; border: 3px solid #fff;
+      background: #b3123a; color: #fff; cursor: pointer; box-shadow: 0 6px 0 #5e0820, 0 0 24px rgba(255, 40, 80, .5); animation: pbtn 1.4s ease-in-out infinite; }
+    .press kbd { font-family: inherit; background: #fff; color: #b3123a; padding: 2px 10px; border-radius: 8px; margin-right: 6px; }
+    @keyframes pbtn { 50% { transform: scale(1.06); } }
+    #end { background: rgba(255, 240, 220, .25); }
+    #end h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); text-shadow: 0 4px 0 #a2405a, 0 0 20px rgba(255, 255, 255, .6); }
+    #end p { color: #3a1a2a; background: rgba(255, 255, 255, .75); padding: 6px 18px; border-radius: 12px; text-shadow: none; }
+    .roster { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; max-width: 760px; width: 100%; }
+    .roster div { background: rgba(20, 8, 20, .75); border: 2px solid rgba(255, 255, 255, .3); border-radius: 16px; padding: 8px 4px; font-size: .85rem; }
+    .roster div.got { border-color: #ffd65a; box-shadow: 0 0 14px rgba(255, 214, 90, .5); }
+    .roster svg { width: 100%; height: 90px; display: block; }
+
+    @media (max-width: 760px) {
+      .card { top: auto; bottom: 0; right: 0; left: 0; width: 100%; max-height: 55vh; border-radius: 22px 22px 0 0; transform: translateY(110%); }
+      .card.show { transform: translateY(0); }
+      .bubble { top: 12vh; left: 50%; white-space: normal; width: 230px; }
+      #hint { bottom: auto; top: 56px; font-size: .95rem; }
+      .roster { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: .01s !important; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <radialGradient id="glowY"><stop offset="0" stop-color="#ffd27a" stop-opacity=".7"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2b8" stop-opacity=".7"/><stop offset="1" stop-color="#fff2b8" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fadeW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eeeaf6"/><stop offset=".6" stop-color="#d9d4ea" stop-opacity=".85"/><stop offset="1" stop-color="#d9d4ea" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fadeK" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#eceee9"/><stop offset="1" stop-color="#eceee9" stop-opacity="0"/></linearGradient>
+    <pattern id="sudare" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#120f0c"/><circle cx="8" cy="8" r="2.6" fill="#d8ccb0"/></pattern>
+    <filter id="glowF" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+
+  <div class="layers" id="sky"></div>
+  <div id="world"><div id="look"><div id="bob"><div id="scene"></div></div></div></div>
+  <div class="layers" id="fog"></div>
+  <div id="particles"></div>
+  <div class="vignette"></div>
+  <div id="flash"></div>
+  <div id="redflash"></div>
+
+  <div class="bubble" id="bubble"></div>
+  <div class="card" id="card"></div>
+  <div class="hud" id="ofuda"></div>
+  <div class="hud" id="prog"></div>
+  <div class="hud" id="hint"></div>
+  <button class="hud" id="goBtn" aria-label="進む">→</button>
+
+  <section class="overlay on" id="title">
+    <h1 class="brush">おばけ<ruby>道中<rt>どうちゅう</rt></ruby></h1>
+    <p><ruby>日本<rt>にほん</rt></ruby>のおばけの<ruby>世界<rt>せかい</rt></ruby>を<ruby>探検<rt>たんけん</rt></ruby>してみる？</p>
+    <p style="font-size:1rem">おばけのクイズに<ruby>答<rt>こた</rt></ruby>えて、お<ruby>札<rt>ふだ</rt></ruby>を<ruby>集<rt>あつ</rt></ruby>めよう。</p>
+    <button class="press pop" id="startBtn"><kbd>Enter</kbd>でスタート</button>
+  </section>
+
+  <section class="overlay" id="end">
+    <h1 class="brush">おつかれさま！</h1>
+    <p id="score"></p>
+    <div class="roster" id="roster"></div>
+    <button class="press pop" id="againBtn"><kbd>Enter</kbd>でもう<ruby>一度<rt>いちど</rt></ruby></button>
+  </section>
+
+  <script>
+    /* ================= DRAWING HELPERS (vẽ quanh gốc 0,0 = chân vật) ================= */
+    let seed = 1;
+    const rr = (a, b) => a + ((seed = seed * 16807 % 2147483647) / 2147483647) * (b - a); // seeded: thế giới giống nhau mỗi lần
+    const rep = (n, f) => Array.from({ length: n }, (_, i) => f(i)).join('');
+    const at = (x, y, s, inner) => `<g transform="translate(${x} ${y}) scale(${s})">${inner}</g>`;
+
+    const swirl = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#2f5d5a" stroke="#0c0a08" stroke-width="2"/><path d="M${x - r * .5} ${y} a${r * .5} ${r * .5} 0 1 1 ${r * .5} ${r * .5} a${r * .25} ${r * .25} 0 1 1 -${r * .25} -${r * .25}" stroke="#0c0a08" stroke-width="2.5" fill="none"/>`;
+    const bush = (c1, c2) => `<circle cx="-40" cy="-20" r="34" fill="${c1}"/><circle cx="0" cy="-36" r="42" fill="${c1}"/><circle cx="44" cy="-18" r="32" fill="${c1}"/><circle cx="-10" cy="-48" r="22" fill="${c2}"/><circle cx="30" cy="-34" r="16" fill="${c2}"/><rect x="-74" y="-20" width="150" height="20" fill="${c1}"/>`;
+    const tree = (t, l1, l2) => `
+      <path d="M-18 0 Q-8 -70 -10 -120 L-40 -176 L-30 -182 L-4 -140 Q-2 -172 2 -212 L12 -212 Q12 -162 8 -134 L38 -174 L46 -166 L12 -110 Q8 -60 20 0Z" fill="${t}"/>
+      <circle cx="-50" cy="-200" r="58" fill="${l1}"/><circle cx="40" cy="-215" r="62" fill="${l1}"/><circle cx="-5" cy="-262" r="64" fill="${l1}"/>
+      <circle cx="-88" cy="-165" r="40" fill="${l1}"/><circle cx="80" cy="-170" r="44" fill="${l1}"/>
+      <circle cx="-22" cy="-280" r="36" fill="${l2}"/><circle cx="-66" cy="-218" r="28" fill="${l2}"/><circle cx="26" cy="-236" r="32" fill="${l2}"/>`;
+    const willow = (t, l) => `<path d="M-20 0 Q-10 -80 -22 -160 Q0 -205 34 -232 L44 -222 Q14 -190 12 -160 Q16 -80 24 0Z" fill="${t}"/>
+      <ellipse cx="0" cy="-232" rx="150" ry="48" fill="${l}"/>
+      <g class="sway" stroke="${l}" stroke-width="7" fill="none" stroke-linecap="round">${rep(20, i => { const x0 = -145 + i * 15; return `<path d="M${x0} -228 Q${x0 + rr(-10, 10)} -130 ${x0 + rr(-20, 20)} ${rr(-90, -10)}"/>`; })}</g>`;
+    const pine = c => `<rect x="-9" y="-34" width="18" height="34" fill="#3a2a22"/>` +
+      rep(3, k => { const w = 92 - k * 24, b = -30 - k * 52; return `<path d="M${-w} ${b} L0 ${b - 112} L${w} ${b}Z" fill="${c}"/>` +
+        `<path d="M${-w * .55} ${b - 50} Q0 ${b - 40} ${w * .55} ${b - 50} L0 ${b - 112}Z" fill="#f2f8ff"/><path d="M${-w} ${b} Q0 ${b - 14} ${w} ${b} L${w * .9} ${b + 6} Q0 ${b - 6} ${-w * .9} ${b + 6}Z" fill="#e6f1ff"/>`; });
+    const grave = () => `<rect x="-44" y="-16" width="88" height="16" fill="#2d2840"/><rect x="-36" y="-26" width="72" height="12" fill="#3b3552"/>
+      <path d="M-26 -26 L-26 -124 Q0 -136 26 -124 L26 -26Z" fill="#575173"/><path d="M-26 -124 Q0 -136 26 -124 L26 -112 Q0 -124 -26 -112Z" fill="#6c6690"/>
+      <path d="M-8 -108 H8 M0 -112 V-40 M-10 -86 H10 M-10 -64 H10" stroke="#2d2840" stroke-width="4"/>`;
+    const sotoba = r => `<g transform="rotate(${r})"><path d="M-7 0 V-170 L0 -182 L7 -170 V0Z" fill="#8a7a62"/><path d="M-7 -150 h14 M-7 -146 h14" stroke="#5a4a38" stroke-width="2"/><path d="M0 -130 V-40" stroke="#3a2e22" stroke-width="2" stroke-dasharray="6 4"/></g>`;
+    const toro = () => `<circle cx="0" cy="-70" r="70" fill="url(#glowY)" class="flame"/>
+      <rect x="-12" y="-44" width="24" height="44" fill="#4f4f58"/><rect x="-28" y="-54" width="56" height="12" fill="#62626c"/>
+      <rect x="-22" y="-88" width="44" height="34" fill="#62626c"/><rect x="-12" y="-82" width="24" height="20" fill="#ffcf6b" class="flame"/>
+      <path d="M-38 -88 L0 -112 L38 -88Z" fill="#4f4f58"/><circle cx="0" cy="-116" r="6" fill="#4f4f58"/>`;
+    const torii = c => `<rect x="-112" y="-262" width="24" height="262" fill="${c}"/><rect x="88" y="-262" width="24" height="262" fill="${c}"/>
+      <rect x="-134" y="-214" width="268" height="18" fill="${c}"/><rect x="-9" y="-246" width="18" height="32" fill="${c}"/>
+      <path d="M-150 -258 Q0 -240 150 -258 L148 -244 Q0 -228 -148 -244Z" fill="${c}"/><path d="M-168 -280 Q0 -258 168 -280 L158 -258 Q0 -240 -158 -258Z" fill="#1a0e10"/>`;
+    const house = (w, h, c, roof, win) => `<rect x="${-w / 2}" y="${-h}" width="${w}" height="${h}" fill="${c}"/>
+      <path d="M${-w / 2 - 16} ${-h} L0 ${-h * 1.5} L${w / 2 + 16} ${-h}Z" fill="${roof}"/>` +
+      rep(Math.max(1, Math.floor(w / 60)), i => `<rect x="${-w / 2 + 16 + i * 60}" y="${-h * .7}" width="30" height="${h * .3}" fill="${rr(0, 1) < .5 ? win : '#1a0f1e'}" ${rr(0, 1) < .3 ? 'class="flame"' : ''}/>`);
+    const building = (w, h) => `<rect x="${-w / 2}" y="${-h}" width="${w}" height="${h}" fill="#4a1f45"/>` +
+      rep(Math.floor(h / 40), k => rep(Math.floor(w / 30), c => rr(0, 1) < .3 ? `<rect x="${-w / 2 + 10 + c * 30}" y="${-h + 14 + k * 40}" width="12" height="16" fill="#ffcf7a"/>` : ''));
+    const pole = () => `<rect x="-7" y="-520" width="14" height="520" fill="#1e1424"/><rect x="-44" y="-496" width="88" height="8" fill="#1e1424"/><rect x="-30" y="-468" width="60" height="6" fill="#1e1424"/>`;
+    const lamp = () => `<path d="M8 -260 L-110 0 L130 0Z" fill="url(#cone)" class="flame"/><rect x="-6" y="-270" width="12" height="270" fill="#2a1a2e"/>
+      <path d="M0 -270 Q0 -290 26 -290 L34 -290" stroke="#2a1a2e" stroke-width="10" fill="none"/><rect x="18" y="-290" width="34" height="14" rx="4" fill="#fff6c8" class="flame"/>`;
+    const vending = () => `<rect x="0" y="-190" width="90" height="190" rx="4" fill="#d8303a"/><rect x="8" y="-180" width="74" height="90" fill="#e9f6ff" class="flame"/>
+      ${rep(3, r => rep(4, c => `<rect x="${13 + c * 17}" y="${-172 + r * 28}" width="11" height="20" rx="3" fill="${['#3a7bd5', '#f2b134', '#3fb27f', '#e85d75'][(r + c) % 4]}"/>`))}
+      <rect x="8" y="-80" width="74" height="10" fill="#222"/><rect x="20" y="-40" width="50" height="24" fill="#1a1a1a"/>`;
+    const crossing = () => `<rect x="-6" y="-300" width="12" height="300" fill="#ddd"/>
+      <g transform="translate(0 -280)"><rect x="-60" y="-9" width="120" height="18" fill="#f2c230" transform="rotate(30)"/><rect x="-60" y="-9" width="120" height="18" fill="#f2c230" transform="rotate(-30)"/></g>
+      <rect x="-56" y="-226" width="112" height="16" fill="#222"/><circle cx="-38" cy="-200" r="18" fill="#222"/><circle cx="38" cy="-200" r="18" fill="#222"/>
+      <circle class="blink-a" cx="-38" cy="-200" r="12" fill="#ff2a2a"/><circle class="blink-b" cx="38" cy="-200" r="12" fill="#ff2a2a"/>`;
+    const gate = () => `<rect x="-130" y="-380" width="260" height="22" fill="#0c0a08"/><rect x="-118" y="-370" width="18" height="370" fill="#1a1410"/><rect x="100" y="-370" width="18" height="370" fill="#1a1410"/>
+      <path d="M-100 -358 H100 L100 -190 L80 -170 L60 -200 L40 -160 L20 -195 L0 -150 L-20 -190 L-40 -165 L-60 -200 L-80 -175 L-100 -190Z" fill="url(#sudare)" stroke="#0c0a08" stroke-width="3"/>` +
+      rep(3, i => { const x = -60 + i * 60; return `<path d="M${x} -175 V-120" stroke="#2f5d5a" stroke-width="5"/>` + swirl(x, -110, 12); });
+    const straw = () => `<path d="M-70 0 L-20 0 L80 -310 L40 -318Z" fill="#9a7838"/>` + rep(9, i => `<path d="M${-68 + i * 5.5} 0 L${42 + i * 4.5} -316" stroke="${i % 3 ? '#c9a45a' : '#3a2a14'}" stroke-width="2"/>`);
+    const grass = c => `<path d="M-30 0 l8 -40 l6 30 l8 -56 l6 50 l8 -38 l6 54Z" fill="${c}"/>`;
+
+    /* ================= CHARACTERS ================= */
+    const eyesC = (l, r, y, glow, pr = 5) => `<ellipse cx="${l}" cy="${y}" rx="13" ry="11" fill="#12060e" opacity=".9"/><ellipse cx="${r}" cy="${y}" rx="13" ry="11" fill="#12060e" opacity=".9"/>
+      <circle class="eye" cx="${l}" cy="${y}" r="${pr}" fill="${glow}" filter="url(#glowF)"/><circle class="eye" cx="${r}" cy="${y}" r="${pr}" fill="${glow}" filter="url(#glowF)"/>`;
+
+    function gashaSvg() {
+      const ink = '#1a1410', bone = '#ece2c4';
+      const b = (d, w) => `<path d="${d}" stroke="${ink}" stroke-width="${w + 5}" stroke-linecap="round" fill="none"/><path d="${d}" stroke="${bone}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`;
+      const k = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${bone}" stroke="${ink}" stroke-width="2.5"/>`;
+      const limb = (pts, w) => pts.slice(1).map((p, i) => b(`M${pts[i]} L${p}`, w)).join('') + pts.map(p => k(...p.split(' ').map(Number), w * .75)).join('');
+      const Q = t => [(1 - t) ** 2 * 92 + 2 * (1 - t) * t * 78 + t * t * 150, (1 - t) ** 2 * 198 + 2 * (1 - t) * t * 138 + t * t * 84]; // đường cong cột sống
+      const spine = rep(15, i => { const [x, y] = Q(i / 14); return k(x, y, 6.5); });
+      const ribs = rep(7, i => { const [x, y] = Q(.42 + i * .065); return b(`M${x} ${y} Q${x + 34} ${y - 20} ${x + 58 - i * 4} ${y + 18 - i * 2}`, 5); });
+      const fingers = (x, y, tips) => tips.map(([tx, ty]) => b(`M${x} ${y} L${(x + tx) / 2} ${(y + ty) / 2} L${tx} ${ty}`, 3.5)).join('');
+      return `<svg viewBox="0 0 260 265" role="img" aria-label="がしゃどくろ"><g class="body">
+        ${limb(['84 206', '50 228', '70 254'], 10)}${b('M70 254 L44 258', 6)}
+        ${limb(['126 104', '98 160', '70 196'], 9)}${fingers(70, 196, [[50, 200], [56, 208], [66, 212], [78, 210]])}
+        <path d="M68 188 Q92 174 114 190 Q118 212 98 216 Q92 206 80 214 Q64 208 68 188Z" fill="${bone}" stroke="${ink}" stroke-width="3"/><ellipse cx="92" cy="198" rx="8" ry="6" fill="${ink}"/>
+        ${spine}${ribs}
+        ${limb(['100 204', '152 226', '122 252'], 11)}${b('M122 252 L154 257', 6)}
+        <g transform="translate(172 66) rotate(14)">
+          <path d="M-40 0 Q-46 -52 0 -56 Q48 -54 48 -4 Q50 14 40 22 L36 36 L-10 40 Q-30 34 -36 18Z" fill="${bone}" stroke="${ink}" stroke-width="3.5"/>
+          <path d="M-30 -12 Q-20 -32 -6 -40 M-34 6 Q-30 20 -22 26" stroke="#a89e86" stroke-width="3" fill="none"/>
+          <ellipse cx="6" cy="-6" rx="14" ry="15" fill="${ink}"/><ellipse cx="34" cy="-4" rx="10" ry="13" fill="${ink}"/>
+          <circle class="glow eye" cx="8" cy="-4" r="4.5" fill="#ff2b45" filter="url(#glowF)"/><circle class="glow eye" cx="34" cy="-2" r="3.5" fill="#ff2b45" filter="url(#glowF)"/>
+          <path d="M24 12 l-6 12 l11 -2Z" fill="${ink}"/><path d="M-14 12 Q-2 24 10 18" stroke="${ink}" stroke-width="2.5" fill="none"/>
+          <g fill="${bone}" stroke="${ink}" stroke-width="1.8">${rep(6, i => `<rect x="${-8 + i * 7.5}" y="${28 - i * .6}" width="7" height="10" rx="1.5"/>`)}</g>
+          <g class="jaw"><path d="M-12 40 L40 36 Q42 52 28 60 L-6 58 Q-16 52 -12 40Z" fill="${bone}" stroke="${ink}" stroke-width="3"/>
+            <g fill="${bone}" stroke="${ink}" stroke-width="1.8">${rep(6, i => `<rect x="${-8 + i * 7.5}" y="${36 - i * .6}" width="7" height="8" rx="1.5"/>`)}</g></g>
+        </g>
+        <g class="reach">${limb(['132 100', '182 150'], 11)}${b('M182 148 L228 126', 6)}${b('M184 156 L230 136', 5)}${k(229, 131, 8)}
+          ${fingers(232, 130, [[252, 106], [260, 120], [258, 136], [248, 150]])}${b('M226 124 L230 104 L240 96', 3.5)}</g>
+      </g></svg>`;
+    }
+
+    const SVG = {
+      yurei: `<svg viewBox="0 0 200 340" role="img" aria-label="幽霊"><g class="body">
+        <path class="hairs" d="M76 44 Q76 14 102 14 Q128 14 128 44 Q134 130 140 290 Q130 280 124 294 Q118 272 112 284 L108 120 L90 70 Q80 60 76 44Z" fill="#14141a"/>
+        <path d="M90 70 Q70 74 64 92 L58 200 Q60 262 70 316 L132 316 Q140 262 140 200 L134 92 Q128 74 110 70Z" fill="url(#fadeK)" stroke="#2a2a33" stroke-width="1.5"/>
+        <path d="M84 110 Q80 200 86 300 M118 112 Q122 200 114 300 M100 160 Q102 230 100 310" stroke="#b9bfb6" stroke-width="1.5" fill="none"/>
+        <path d="M66 90 Q46 130 48 208 Q60 218 78 208 L86 150Z" fill="#eceee9" stroke="#2a2a33" stroke-width="1.5"/>
+        <path d="M134 90 Q154 130 152 208 Q140 218 122 208 L114 150Z" fill="#eceee9" stroke="#2a2a33" stroke-width="1.5"/>
+        <path d="M56 150 Q58 190 62 204 M144 150 Q142 190 138 204" stroke="#b9bfb6" stroke-width="1.5" fill="none"/>
+        <path d="M66 140 Q100 147 134 140 L134 153 Q100 160 66 153Z" fill="#e2e5df" stroke="#2a2a33" stroke-width="1.3"/>
+        <ellipse cx="100" cy="152" rx="9" ry="6" fill="#e2e5df" stroke="#2a2a33" stroke-width="1.3"/>
+        <path d="M94 156 Q88 196 86 238 L95 236 Q97 196 100 158Z M104 156 Q110 192 112 226 L104 228 Q102 192 100 158Z" fill="#e2e5df" stroke="#2a2a33" stroke-width="1.3"/>
+        <path d="M74 146 Q70 164 74 182 Q78 188 81 181 Q85 166 88 148Z M126 146 Q130 164 126 182 Q122 188 119 181 Q115 166 112 148Z" fill="#dfe4dd" stroke="#2a2a33" stroke-width="1.3"/>
+        <path d="M76 168 l-1 12 M80 168 l1 12 M124 168 l1 12 M120 168 l-1 12" stroke="#2a2a33" stroke-width="1"/>
+        <path d="M96 60 L96 72 L108 72 L108 60Z" fill="#dfe4dd"/>
+        <path d="M92 70 L104 110 L114 70 M96 70 L104 98 L110 70" stroke="#2a2a33" stroke-width="1.5" fill="none"/>
+        <ellipse cx="102" cy="46" rx="13" ry="17" fill="#e4e8e2" stroke="#2a2a33" stroke-width="1.5"/>
+        <path d="M93 48 q-1 3 2 4 M109 48 q1 3 -2 4" stroke="#a6a0b8" stroke-width="1.5" fill="none"/>
+        <path d="M93 44 q4 -2 7 0 M104 44 q4 -2 7 0" stroke="#2a2a33" stroke-width="1.2" fill="none"/>
+        <ellipse class="eye" cx="96.5" cy="45.5" rx="2" ry="1.3" fill="#1a1a22"/><ellipse class="eye" cx="107.5" cy="45.5" rx="2" ry="1.3" fill="#1a1a22"/>
+        <path d="M102 48 l-1 6 l2 0" stroke="#8a8f88" stroke-width="1" fill="none"/>
+        <path d="M98 58 Q102 56 106 58 Q102 61 98 58Z" fill="#6b4a55"/>
+        <path d="M102 16 Q84 18 86 50 Q84 80 80 104 L88 98 Q92 62 92 42 Q96 28 102 26 Q108 28 112 42 Q114 72 118 112 L126 116 Q118 72 118 46 Q116 18 102 16Z" fill="#14141a"/>
+        <path d="M89 32 Q102 26 115 32" stroke="#f4f4f0" stroke-width="2.5" fill="none"/>
+        <path d="M96 30 L108 30 L102 17Z" fill="#fbfbf8" stroke="#2a2a33" stroke-width="1.2"/></g>
+        <g class="mist" stroke="#5a6680" stroke-width="1.5">
+        <path d="M30 316 Q40 300 62 306 Q70 292 92 300 Q110 290 126 302 Q146 296 158 308 Q176 306 176 318 L170 326 Q120 320 40 326Z" fill="#b8c4dc"/>
+        <path d="M60 334 Q74 322 98 328 Q118 318 140 330 Q160 326 168 338 L60 340Z" fill="#c8d6e4"/></g></svg>`,
+
+      yuki: `<svg viewBox="0 0 200 240" role="img" aria-label="雪女"><g class="body">
+        <path class="hairs" d="M48 80 Q48 24 100 24 Q152 24 152 80 L164 212 L150 198 L138 220 L122 200 L100 222 L78 200 L62 220 L50 198 L36 212Z" fill="#dfeefe"/>
+        <path d="M64 130 Q100 116 136 130 L152 232 L136 222 L122 236 L100 224 L78 236 L64 222 L48 232Z" fill="#b8dcf6"/>
+        <path d="M58 172 L142 172 L144 188 L56 188Z" fill="#6aa0cc"/><path d="M116 128 L100 154 L84 128" stroke="#fff" stroke-width="4" fill="none"/>
+        <path d="M136 140 Q170 150 182 140" stroke="#e8f4ff" stroke-width="10" stroke-linecap="round" fill="none"/><path d="M182 140 l10 -6 M182 140 l12 0 M182 140 l10 6" stroke="#e8f4ff" stroke-width="3" stroke-linecap="round"/>
+        <ellipse cx="100" cy="92" rx="36" ry="40" fill="#e9f5ff"/>
+        <path d="M72 102 l6 6 l-2 6 M128 104 l-6 4 l2 8" stroke="#8fbde6" stroke-width="1.5" fill="none"/>
+        ${eyesC(86, 114, 94, '#ffffff', 5)}
+        <path d="M90 118 Q100 112 110 118 Q100 126 90 118Z" fill="#1f3d72"/>
+        <path d="M58 98 Q58 44 100 44 Q142 44 142 98 Q132 68 116 62 L112 84 L104 60 L94 82 L88 62 Q68 70 58 98Z" fill="#dfeefe"/>
+        <g class="breath" fill="#ffffff"><circle cx="116" cy="120" r="5"/><circle cx="126" cy="116" r="4"/><circle cx="134" cy="112" r="3"/></g></g></svg>`,
+
+      teke: `<svg viewBox="0 0 200 240" role="img" aria-label="テケテケ">
+        <g class="body">
+        <path d="M62 176 L70 186 L78 176 L88 190 L100 178 L112 190 L122 176 L130 186 L138 176" fill="#7a0d1a" stroke="#7a0d1a" stroke-width="6" stroke-linejoin="round"/>
+        <path class="drip" d="M72 184 q3 18 0 26 q-3 -8 0 -26Z" fill="#a3121f"/><path class="drip" d="M100 186 q3 24 0 32 q-3 -8 0 -32Z" fill="#a3121f"/><path class="drip" d="M126 184 q3 14 0 20 q-3 -6 0 -20Z" fill="#a3121f"/>
+        <path d="M64 118 Q100 106 136 118 L138 178 Q100 186 62 178Z" fill="#253055"/>
+        <path d="M64 118 L100 146 L136 118 L128 112 L100 132 L72 112Z" fill="#d8d4cc"/><path d="M92 140 L100 150 L108 140 L100 160Z" fill="#8e1020"/>
+        <ellipse cx="84" cy="164" rx="10" ry="6" fill="#7a0d1a" opacity=".6"/>
+        <g class="armL"><path d="M70 128 Q46 160 40 202" stroke="#cfc8c0" stroke-width="12" stroke-linecap="round" fill="none"/><circle cx="40" cy="204" r="8" fill="#cfc8c0"/><path d="M33 207 l-4 8 M40 209 l0 9 M47 207 l4 8" stroke="#2a1a1a" stroke-width="3" stroke-linecap="round"/></g>
+        <g class="armR"><path d="M130 128 Q154 160 160 202" stroke="#cfc8c0" stroke-width="12" stroke-linecap="round" fill="none"/><circle cx="160" cy="204" r="8" fill="#cfc8c0"/><path d="M153 207 l-4 8 M160 209 l0 9 M167 207 l4 8" stroke="#2a1a1a" stroke-width="3" stroke-linecap="round"/></g>
+        <path class="hairs" d="M56 84 Q46 60 64 40 L52 120 Z M144 84 Q154 60 136 40 L148 120Z" fill="#0b0912"/>
+        <circle cx="100" cy="82" r="38" fill="#d6d0c8"/>
+        ${eyesC(86, 114, 86, '#ff2b45', 4)}
+        <path d="M76 104 Q100 128 124 104 Q100 116 76 104Z" fill="#1a0810"/><path d="M80 106 l4 6 l4 -5 l4 7 l4 -6 l4 7 l4 -6 l4 6 l4 -5 l4 5" stroke="#eee" stroke-width="2" fill="none"/>
+        <path d="M60 88 Q58 40 100 40 Q142 40 140 88 L132 64 L124 82 L116 58 L104 76 L96 56 L86 78 L78 58 L70 80Z" fill="#0b0912"/></g></svg>`,
+
+      gasha: gashaSvg(),
+
+      kuchi: `<svg viewBox="0 0 200 240" role="img" aria-label="口裂け女"><g class="body">
+        <path class="hairs" d="M46 82 Q46 24 100 24 Q154 24 154 82 L162 206 L42 206Z" fill="#0b0912"/>
+        <path d="M62 132 Q100 118 138 132 L154 232 L46 232Z" fill="#7a1a26"/><path d="M86 130 L100 152 L114 130" stroke="#4a0c16" stroke-width="4" fill="none"/>
+        <circle cx="100" cy="172" r="4" fill="#c9a24a"/><circle cx="100" cy="196" r="4" fill="#c9a24a"/>
+        <g transform="translate(150 170) rotate(20)"><path d="M0 0 L6 48 L-6 48Z" fill="#c8ccd4"/><path d="M0 0 L-14 46 L-4 48Z" fill="#a8acb4"/><circle cx="-6" cy="-8" r="8" fill="none" stroke="#2a2a30" stroke-width="4"/><circle cx="8" cy="-6" r="8" fill="none" stroke="#2a2a30" stroke-width="4"/></g>
+        <ellipse cx="100" cy="92" rx="36" ry="40" fill="#e6ddd6"/>
+        <ellipse cx="86" cy="92" rx="9" ry="7" fill="#fff"/><ellipse cx="114" cy="92" rx="9" ry="7" fill="#fff"/>
+        <circle class="eye" cx="86" cy="92" r="2.5" fill="#000"/><circle class="eye" cx="114" cy="92" r="2.5" fill="#000"/>
+        <path d="M76 84 L94 88 M124 84 L106 88" stroke="#1a0810" stroke-width="3" stroke-linecap="round"/>
+        <path d="M62 106 Q100 140 138 106 Q100 126 62 106Z" fill="#5a0610"/><path d="M66 108 l6 5 l5 -2 l5 6 l6 -3 l6 6 l6 -2 l6 6 l6 -3 l6 5 l5 -3 l6 4 l5 -4" stroke="#f2ece4" stroke-width="2" fill="none"/>
+        <path d="M62 106 l-4 -4 m8 7 l-3 -6 m70 3 l4 -4 m-8 7 l3 -6" stroke="#2a0a10" stroke-width="2"/>
+        <g class="mask"><path d="M60 104 L72 106 M140 104 L128 106" stroke="#ccc" stroke-width="2"/><rect x="70" y="100" width="60" height="34" rx="14" fill="#fafafa" stroke="#ddd" stroke-width="2"/>
+          <path d="M76 112 H124 M76 121 H124" stroke="#e2e2e8" stroke-width="2"/><path d="M118 128 q4 6 2 12" stroke="#a3121f" stroke-width="2" fill="none"/></g>
+        <path d="M58 92 Q58 44 100 44 Q142 44 142 92 L142 78 L58 78Z M60 78 L140 78 L140 70 Q100 48 60 70Z" fill="#0b0912"/></g></svg>`,
+
+      aka: `<svg viewBox="0 0 200 240" role="img" aria-label="赤マント"><g class="body">
+        <path class="cape" d="M100 34 Q154 38 162 120 L178 226 L160 216 L146 230 L126 218 L100 230 L74 218 L54 230 L40 216 L22 226 L38 120 Q46 38 100 34Z" fill="#a8121f"/>
+        <path d="M150 110 L170 222 L158 214 L140 120Z" fill="#2b4fa8"/>
+        <path d="M100 42 Q142 44 148 96 Q142 138 100 140 Q58 138 52 96 Q58 44 100 42Z" fill="#6e0a14"/>
+        <ellipse cx="100" cy="96" rx="36" ry="34" fill="#07030a"/>
+        <circle class="eye glow" cx="86" cy="90" r="6" fill="#ffd23a" filter="url(#glowF)"/><circle class="eye glow" cx="114" cy="90" r="6" fill="#ffd23a" filter="url(#glowF)"/>
+        <path d="M76 106 Q100 128 124 106 Q100 116 76 106Z" fill="#f2ece4"/><path d="M80 108 l4 6 l4 -4 l4 6 l4 -5 l4 7 l4 -5 l4 6 l4 -4 l4 5 l4 -6" stroke="#07030a" stroke-width="2" fill="none"/>
+        <path d="M60 134 Q100 154 140 134 L134 152 Q100 166 66 152Z" fill="#7e0c18"/><circle cx="100" cy="152" r="6" fill="#c9a24a"/></g></svg>`
+    };
+
+    /* ================= DATA ================= */
+    const GHOSTS = [
+      { id: 'yurei', name: '幽霊', read: 'ゆうれい', type: '幽霊（ゆうれい）', accent: '#c9b6ff', scare: 3,
+        desc: '長（なが）い黒髪（くろかみ）と白（しろ）い着物（きもの）の女性（じょせい）の幽霊（ゆうれい）。恨（うら）みや未練（みれん）を抱（いだ）き、この世（よ）をさまよう。',
+        line: 'うらめしや〜', sub: 'この恨（うら）み、はらさでおくべきか…',
+        q: '幽霊（ゆうれい）があの世（よ）へ行（い）けないのはなぜ？', opts: ['この世（よ）に残（のこ）した思（おも）いがあるから', '道（みち）がわからないから', '足（あし）がないから'] },
+      { id: 'yuki', name: '雪女', read: 'ゆきおんな', type: '妖怪（ようかい）', accent: '#9fd3ff', scare: 3,
+        desc: '雪（ゆき）の夜（よる）に現（あらわ）れる美（うつく）しい女性（じょせい）。冷（つめ）たい息（いき）で人（ひと）を凍（こお）らせてしまう。',
+        line: 'さむい…？', sub: '凍（こお）らせてあげる…',
+        q: '雪女（ゆきおんな）に息（いき）をかけられたら、体（からだ）はどうなる？', opts: ['かちかちに固（かた）まる', 'ぽかぽかと温（あたた）かくなる', 'ふわふわと軽（かる）くなる'] },
+      { id: 'teke', name: 'テケテケ', read: '', type: '都市伝説（としでんせつ）', accent: '#ffb27a', scare: 4,
+        desc: '線路（せんろ）で両足（りょうあし）を失（うしな）った少女（しょうじょ）の霊（れい）。「テケテケ」と音（おと）を立（た）て、すごい速（はや）さで追（お）いかけてくる。',
+        line: 'テケテケテケ…！', sub: '足（あし）…ちょうだい…',
+        q: 'テケテケは何（なに）を使（つか）って追（お）いかけてくる？', opts: ['両手（りょうて）', '両足（りょうあし）', '電車（でんしゃ）'] },
+      { id: 'gasha', name: 'がしゃどくろ', read: '', type: '妖怪（ようかい）', accent: '#ff7a7a', scare: 5,
+        desc: '多（おお）くの死者（ししゃ）の骨（ほね）が集（あつ）まってできた巨大（きょだい）な骸骨（がいこつ）。夜（よる）に現（あらわ）れ、人（ひと）を襲（おそ）って食（た）べる。',
+        line: 'ガシャ…ガシャ…', sub: '骨（ほね）が足（た）りない…',
+        q: 'がしゃどくろの体（からだ）に「ない」ものは？', opts: ['肉（にく）', '骨（ほね）', '頭（あたま）'] },
+      { id: 'kuchi', name: '口裂け女', read: 'くちさけおんな', type: '都市伝説（としでんせつ）', accent: '#ffc4d6', scare: 4,
+        desc: '口（くち）が耳（みみ）まで裂（さ）けた女（おんな）。マスクをして「私（わたし）、きれい？」と子（こ）どもに話（はな）しかけてくる。',
+        line: 'わたし、きれい？', sub: '…これでも？',
+        q: '口裂（くちさ）け女（おんな）がマスクをしているのはなぜ？', opts: ['裂（さ）けた口（くち）をかくすため', 'かぜをひいているから', '寒（さむ）いから'] },
+      { id: 'aka', name: '赤マント', read: 'あかマント', type: '都市伝説（としでんせつ）', accent: '#ff6b6b', scare: 5,
+        desc: 'トイレに現（あらわ）れる怪人（かいじん）。「赤（あか）いマントと青（あお）いマント、どっちがいい？」と聞（き）き、どちらを選（えら）んでも恐（おそ）ろしい目（め）に遭（あ）う。',
+        line: '赤（あか）いマントはいらんかね？', sub: '青（あお）いマントもあるよ…',
+        q: '赤（あか）マントに聞（き）かれたら、どう答（こた）えるのが安全（あんぜん）？', opts: ['安全（あんぜん）な答（こた）えはない', '「赤（あか）」と答（こた）える', '「青（あお）」と答（こた）える'] }
+    ];
+
+    // 8 khu vực dọc con đường: start, 6 con ma, end
+    const ZONES = [
+      { key: 'start', fx: 'firefly', sky: 'linear-gradient(#060b1c,#1b2f45 50%,#14201b 50%)', fog: '#2c3f4a', stars: 1,
+        moon: [90, '12%', '14%', '#fdf3c8'], ground: 'linear-gradient(90deg,#14201b 0 42%,#3b443b 42% 58%,#14201b 58%)' },
+      { key: 'yurei', fx: 'orb', sky: 'linear-gradient(#0c0720,#34205a 50%,#140e24 50%)', fog: '#4a2e6a', stars: 1,
+        moon: [140, '8%', '12%', '#fff6d5'], ground: 'linear-gradient(90deg,#140e24 0 40%,#2e2638 40% 60%,#140e24 60%)' },
+      { key: 'yuki', fx: 'snow', sky: 'linear-gradient(#06122a,#2a5482 40%,#8db6dd 50%,#dfeefc 50%)', fog: '#cfe3f5', stars: 1,
+        moon: [70, '10%', '72%', '#eef6ff'], ground: 'linear-gradient(90deg,#dfeefc 0 42%,#f4f9ff 42% 58%,#dfeefc 58%)' },
+      { key: 'teke', fx: 'dust', sky: 'linear-gradient(#1e0d33,#8e2f63 25%,#e5604f 40%,#ffb05a 50%,#2a1a24 50%)', fog: '#ff9a6a',
+        moon: [170, '38%', '22%', '#ffd27a'],
+        ground: 'linear-gradient(90deg,transparent 46%,#b9bccb 46% 46.6%,transparent 46.6% 53.4%,#b9bccb 53.4% 54%,transparent 54%), repeating-linear-gradient(0deg,#3a2418 0 26px,transparent 26px 70px) center/440px 100% no-repeat, linear-gradient(90deg,#2a1a24 0 44%,#4a3a3a 44% 56%,#2a1a24 56%)' },
+      { key: 'gasha', fx: 'ash', sky: 'linear-gradient(#15120f,#221c17 50%,#3e3832 50%)', fog: '#2a221c', cartouche: 1,
+        ground: 'repeating-linear-gradient(60deg,#14100c 0 5px,#3e3832 5px 46px,#6e655c 46px 48px,#3e3832 48px 70px)',
+        wall: [420, 'linear-gradient(transparent 55%,#2a1e14 55%), radial-gradient(circle,#d8ccb0 2.4px,transparent 3px) 0 0/16px 16px, #120f0c'] },
+      { key: 'kuchi', fx: 'petal', sky: 'linear-gradient(#2a1640,#a8406e 25%,#f08a5a 42%,#ffc07a 50%,#3a2e38 50%)', fog: '#f0a070',
+        ground: 'linear-gradient(90deg,transparent 49.7%,#ddd 49.7% 50.3%,transparent 50.3%), linear-gradient(90deg,#3a2e38 0 40%,#2d2233 40% 60%,#3a2e38 60%)',
+        wall: [110, 'repeating-linear-gradient(90deg,#574858 0 2px,transparent 2px 80px), repeating-linear-gradient(0deg,#574858 0 2px,transparent 2px 36px), #6b5a6e'] },
+      { key: 'aka', fx: 'dust', sky: 'linear-gradient(#1e2826,#3a4844 50%,#3d4a46 50%)', fog: '#3d4a46', tube: 1,
+        ground: 'repeating-conic-gradient(#73827d 0 25%,#5d6b67 0 50%) 0 0/90px 90px',
+        wall: [520, 'repeating-linear-gradient(90deg,#5b4a4a 0 12px,#c0a48a 12px 212px,#5b4a4a 212px 224px,transparent 224px 300px) 0 100%/100% 82% no-repeat, linear-gradient(#6f968a 3px,transparent 3px) 0 0/60px 60px, linear-gradient(90deg,#6f968a 3px,transparent 3px) 0 0/60px 60px, #9cc2b6'] },
+      { key: 'end', fx: 'petal', sky: 'linear-gradient(#7fa8e0,#ffc6b0 35%,#ffe6b8 50%,#7fb85a 50%)', fog: '#fff0d0', fuji: 1,
+        moon: [150, '34%', '44%', '#fff1c1'], ground: 'linear-gradient(90deg,#7fb85a 0 42%,#d9c69a 42% 58%,#7fb85a 58%)' }
+    ];
+
+    /* ================= WORLD BUILD ================= */
+    const L = 1600, GY = 230;   // chiều dài 1 khu, độ cao mắt
+    const stopAt = i => (i + 1) * L - 450;      // vị trí camera khi đứng trước con ma i
+    const zoneNear = k => -(k - 1) * L - 900;    // ranh giới khu nằm xa sau lưng con ma    // z gần của khu k (k = 0..7)
+    const $ = id => document.getElementById(id);
+    let objs = [], html = [];
+
+    const add = (h, z, zFar) => { html.push(h); objs.push({ z, zFar }); };
+    function bb(vb, inner, x, z, sc, cls = '') {
+      const [vx, vy, vw, vh] = vb;
+      const gz = -Math.round(-z / L) * L; // chừa trống khoảng giữa camera và con ma gần nhất
+      if (gz < 0 && z > gz - 60 && z < gz + 520 && x + vx * sc < 260 && x + (vx + vw) * sc > -560) return;
+      add(`<div class="o ${cls}" style="width:${vw * sc}px;height:${vh * sc}px;transform:translate3d(${x + vx * sc}px,${GY + vy * sc}px,${z}px)"><svg viewBox="${vx} ${vy} ${vw} ${vh}" width="100%" height="100%">${inner}</svg></div>`, z);
+    }
+    const VB = { tree: [-135, -330, 270, 332], pine: [-95, -250, 190, 252], grave: [-46, -140, 92, 142], sotoba: [-25, -190, 50, 192],
+      toro: [-72, -142, 144, 144], willow: [-170, -285, 340, 287], torii: [-172, -285, 344, 287], crossing: [-65, -315, 130, 317],
+      vending: [-4, -194, 98, 196], lamp: [-115, -295, 250, 297], pole: [-46, -522, 92, 524], bush: [-80, -90, 160, 92],
+      gate: [-132, -382, 264, 384], straw: [-75, -322, 160, 324], grass: [-32, -60, 64, 62] };
+    const side = () => (rr(0, 1) < .5 ? -1 : 1);
+    const along = (k, n, f) => { for (let i = 0; i < n; i++) f(zoneNear(k) - (i + rr(.2, .8)) * L / n, i); };
+
+    function build() {
+      seed = 7; objs = []; html = [];
+      ZONES.forEach((Z, k) => {
+        const zN = zoneNear(k) + (k === 0 ? 1300 : 0), len = (k === 0 ? 1300 : 0) + (k === 7 ? 2 * L : L);
+        add(`<div class="o" style="width:2400px;height:${len}px;background:${Z.ground};transform:translate3d(-1200px,${GY}px,${zN - len}px) rotateX(90deg)"></div>`, zN, zN - len);
+        if (Z.wall) [-1, 1].forEach(sd => add(`<div class="o" style="width:${len}px;height:${Z.wall[0]}px;background:${Z.wall[1]};transform:translate3d(${sd * (k === 5 ? 400 : 380)}px,${GY - Z.wall[0]}px,${zN}px) rotateY(90deg)"></div>`, zN, zN - len));
+      });
+      // start: rừng + cổng torii
+      for (let z = 1200; z > -300; z -= 160) [-1, 1].forEach(sd => bb(VB.tree, tree('#251c26', '#173431', '#1f453f'), sd * rr(420, 900), z - rr(0, 80), rr(1.6, 2.2)));
+      bb(VB.torii, torii('#b3343c'), 0, -150, 2.1);
+      bb(VB.toro, toro(), -300, -60, 1.3); bb(VB.toro, toro(), 300, -60, 1.3);
+      // 1 yurei: nghĩa địa
+      along(1, 14, z => { bb(VB.grave, grave(), side() * rr(330, 800), z, rr(1.3, 1.7)); bb(VB.sotoba, sotoba(rr(-8, 8)), side() * rr(360, 900), z - 40, rr(1.4, 1.8)); });
+      along(1, 4, z => { bb(VB.toro, toro(), -300, z, 1.3); bb(VB.toro, toro(), 300, z, 1.3); });
+      along(1, 6, z => bb(VB.tree, tree('#1c1233', '#1c1233', '#22173e'), side() * rr(1000, 1500), z, 2.4));
+      bb(VB.willow, willow('#1d1428', '#2a4434'), 520, -L + 150, 2.2);
+      // 2 yuki: rừng thông tuyết
+      along(2, 12, z => [-1, 1].forEach(sd => bb(VB.pine, pine(rr(0, 1) < .5 ? '#1f4a55' : '#163a44'), sd * rr(380, 1100), z - rr(0, 60), rr(1.8, 2.6))));
+      along(2, 6, z => bb(VB.bush, bush('#ffffff', '#e6f1ff'), side() * rr(300, 600), z, 1.4));
+      bb([-118, -170, 236, 172], house(200, 110, '#5a3b2a', '#f2f7ff', '#ffc65a'), 800, -2 * L + 400, 1.8);
+      // 3 teke: đường ray, cột điện, nhà cao tầng
+      along(3, 4, z => { bb(VB.pole, pole(), -420, z, 1); bb(VB.pole, pole(), 420, z - 200, 1); });
+      along(3, 10, z => { const w = rr(140, 260), h = rr(260, 600); bb([-w / 2, -h, w, h], building(w, h), side() * rr(900, 1500), z, 1.3); });
+      along(3, 10, z => bb(VB.grass, grass('#170a18'), side() * rr(260, 500), z, 1.5));
+      bb(VB.crossing, crossing(), 330, -3 * L + 350, 1.4);
+      // 4 gasha: cung điện cổ ukiyo-e
+      along(4, 4, z => bb(VB.gate, gate(), 0, z, 2.1));
+      along(4, 8, z => bb(VB.straw, straw(), side() * rr(260, 360), z, rr(1.2, 1.6)));
+      // 5 kuchi: phố Showa chiều tà
+      along(5, 8, z => [-1, 1].forEach(sd => { const w = rr(180, 260), h = rr(120, 160); bb([-w / 2 - 18, -h * 1.5 - 2, w + 36, h * 1.5 + 4], house(w, h, '#3a1d3f', '#2a1430', '#ffd98a'), sd * rr(560, 900), z - rr(0, 60), 1.6); }));
+      along(5, 3, z => { bb(VB.pole, pole(), -450, z, 1.1); bb(VB.pole, pole(), 450, z - 260, 1.1); });
+      bb(VB.vending, vending(), -360, -5 * L + 500, 1.3); bb(VB.lamp, lamp(), 300, -5 * L + 250, 1.5);
+      // 7 end: bình minh, hoa anh đào
+      along(7, 12, z => [-1, 1].forEach(sd => bb(VB.tree, tree('#6b4a3a', '#ff9fb8', '#ffc4d4'), sd * rr(400, 1000), z - rr(0, 80), rr(1.6, 2.2))));
+      bb(VB.torii, torii('#d8473f'), 0, -6 * L - 1700, 2.1);
+      // ma
+      GHOSTS.forEach((g, i) => {
+        const vb = SVG[g.id].match(/viewBox="([^"]+)"/)[1].split(' ').map(Number), w = { gasha: 680, yurei: 440 }[g.id] || 500, h = w * vb[3] / vb[2];
+        add(`<div class="o ghost c-${g.id}" data-i="${i}" style="width:${w}px;height:${h}px;transform:${ghostPos(i, h, w, 600)}">${SVG[g.id]}</div>`, -(i + 1) * L);
+      });
+      const scene = $('scene');
+      scene.innerHTML = html.join('');
+      [...scene.children].forEach((el, i) => objs[i].el = el);
+      $('sky').innerHTML = ZONES.map(Z => `<div class="lay" data-k="${Z.key}" style="background:${starBg(Z.stars)}${Z.sky}">` +
+        (Z.moon ? `<div class="moon" style="width:${Z.moon[0]}px;height:${Z.moon[0]}px;top:${Z.moon[1]};right:${Z.moon[2]};background:${Z.moon[3]};box-shadow:0 0 80px 30px ${Z.moon[3]}55"></div>` : '') +
+        (Z.cartouche ? `<div class="cartouche"><div>相馬の古内裏</div><div>骸骨</div></div>` : '') + (Z.tube ? '<div class="tube"></div>' : '') +
+        (Z.fuji ? `<svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMax meet" style="position:absolute;left:0;right:0;bottom:50%;width:100%;height:30%"><path d="M0 300 L400 40 Q500 10 600 40 L1000 300Z" fill="#6b84b8"/><path d="M400 40 Q500 10 600 40 L660 90 L610 80 L570 110 L530 76 L490 106 L450 78 L410 104 L340 90Z" fill="#fff"/></svg>` : '') + '</div>').join('');
+      $('fog').innerHTML = ZONES.map(Z => `<div class="lay" data-k="${Z.key}" style="background:linear-gradient(transparent 42%,${Z.fog}cc 49.5%,${Z.fog}88 51.5%,transparent 58%)"></div>`).join('');
+    }
+    // ma đứng hơi lệch trái để chừa chỗ cho thẻ thông tin; back = lùi thêm khi còn "ngủ"
+    const ghostPos = (i, h, w, back) => `translate3d(${-150 - w / 2}px,${GY - h}px,${-(i + 1) * L - back}px)`;
+    function starBg(on) {
+      if (!on) return '';
+      seed = 99;
+      return rep(50, () => `radial-gradient(1.5px 1.5px at ${rr(0, 100).toFixed(1)}% ${rr(0, 45).toFixed(1)}%,#fff,transparent),`);
+    }
+
+    /* ================= CAMERA ================= */
+    let cam = 0, zone = -1;
+    function setCam(s) {
+      cam = s;
+      $('scene').style.transform = `translateZ(${s}px)`;
+      for (const o of objs) {
+        const d = -o.z - s, show = o.zFar !== undefined ? (-o.zFar - s > 0 && d < 3400) : (d > 30 && d < 3400);
+        o.el.style.display = show ? '' : 'none';
+        if (show && !o.el.classList.contains('ghost')) o.el.style.opacity = d > 900 ? Math.max(0, 1 - (d - 900) / 1100) : 1;
+      }
+      const k = Math.max(0, Math.min(7, Math.floor((s - 900) / L) + 1));
+      if (k !== zone) {
+        zone = k;
+        document.querySelectorAll('.lay').forEach(l => l.classList.toggle('on', l.dataset.k === ZONES[k].key));
+        particles(ZONES[k].fx);
+      }
+    }
+    function particles(type, n = 36) {
+      const box = $('particles');
+      box.innerHTML = '';
+      for (let i = 0; type && i < n; i++) {
+        const s = document.createElement('span'), size = 3 + Math.random() * (type === 'orb' ? 16 : 7);
+        s.className = 'pt ' + type;
+        s.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${4 + Math.random() * 8}s;animation-delay:${-Math.random() * 10}s;` +
+          (type === 'firefly' ? `top:${20 + Math.random() * 70}%;` : '');
+        box.appendChild(s);
+      }
+    }
+    function walk(to, done) {
+      const from = cam, t0 = performance.now(), dur = 3000;
+      document.body.classList.add('walking');
+      (function step(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        setCam(from + (to - from) * (.5 - Math.cos(Math.PI * p) / 2));
+        if (p < 1) requestAnimationFrame(step);
+        else { document.body.classList.remove('walking'); done(); }
+      })(t0);
+    }
+
+    /* ================= GAME FLOW ================= */
+    // state: title → walking → quiz → cleared → walking → … → end
+    let state = 'title', cur = -1, firstTry = true, got = [];
+    const ghostEl = i => document.querySelector(`.ghost[data-i="${i}"]`);
+
+    function hint(text, pulse) { $('hint').innerHTML = text; $('hint').classList.toggle('pulse', !!pulse); $('goBtn').classList.toggle('on', !!pulse); }
+    function hud() {
+      $('ofuda').innerHTML = 'お<ruby>札<rt>ふだ</rt></ruby>' + GHOSTS.map((_, i) => `<i class="${got[i] ? 'got' : ''}"></i>`).join('');
+      $('prog').textContent = cur < 0 ? '' : `${Math.min(cur + 1, 6)} / 6`;
+    }
+
+    function start() {
+      document.activeElement.blur();
+      $('title').classList.remove('on'); $('end').classList.remove('on');
+      next();
+    }
+    function next() {
+      $('card').classList.remove('show'); $('bubble').classList.remove('show');
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      state = 'walking'; hint('…');
+      if (cur === GHOSTS.length - 1) return walk(6 * L + 1000, finish);
+      cur++; hud();
+      walk(stopAt(cur), () => arrive(cur));
+    }
+    function arrive(i) {
+      const el = ghostEl(i), g = GHOSTS[i];
+      $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
+      el.classList.add('awake');
+      el.style.transform = ghostPos(i, el.offsetHeight, el.offsetWidth, 0);
+      state = 'quiz'; firstTry = true;
+      const opts = g.opts.map((t, j) => ({ t, ok: j === 0 })).sort(() => Math.random() - .5);
+      const card = $('card');
+      card.style.setProperty('--accent', g.accent);
+      card.innerHTML = `
+        <span class="no">${i + 1}<ruby>体目<rt>たいめ</rt></ruby> / 6</span>
+        <h2 class="brush">${g.name}</h2>
+        <div class="read">${g.read}　【${g.type}】</div>
+        <p>${g.desc}</p>
+        <div class="scare"><ruby>怖<rt>こわ</rt></ruby>さ：${'👻'.repeat(g.scare)}<span class="off">${'👻'.repeat(5 - g.scare)}</span></div>
+        <div class="tip">💡 おばけをクリックすると<ruby>話<rt>はな</rt></ruby>すよ…</div>
+        <div class="quiz"><div class="q">❓ ${g.q}</div>
+          <div class="opts">${opts.map((o, j) => `<button data-ok="${o.ok}"><kbd>${j + 1}</kbd>${o.t}</button>`).join('')}</div>
+          <div class="fb" id="fb"></div></div>`;
+      setTimeout(() => card.classList.add('show'), 700);
+      hint('クイズに<ruby>答<rt>こた</rt></ruby>えよう！ (1・2・3)');
+    }
+    function answer(btn) {
+      if (state !== 'quiz' || btn.disabled) return;
+      btn.blur();
+      const i = cur, fb = $('fb');
+      if (btn.dataset.ok === 'true') {
+        btn.classList.add('ok');
+        document.querySelectorAll('.opts button').forEach(b => b.disabled = true);
+        if (firstTry) got[i] = true;
+        fb.className = 'fb ok';
+        fb.innerHTML = firstTry ? '<ruby>正解<rt>せいかい</rt></ruby>！お<ruby>札<rt>ふだ</rt></ruby>をゲット！' : '<ruby>正解<rt>せいかい</rt></ruby>！…でもお<ruby>札<rt>ふだ</rt></ruby>はもらえない';
+        state = 'cleared'; hud();
+        hint(i === GHOSTS.length - 1 ? '→ で<ruby>外<rt>そと</rt></ruby>へ<ruby>出<rt>で</rt></ruby>よう' : '→ で<ruby>先<rt>さき</rt></ruby>へ<ruby>進<rt>すす</rt></ruby>む', true);
+      } else {
+        firstTry = false;
+        btn.classList.add('ng'); btn.disabled = true;
+        fb.className = 'fb ng'; fb.textContent = 'ちがう…もう一度（いちど）！';
+        const el = ghostEl(i);
+        el.classList.remove('angry'); void el.offsetWidth; el.classList.add('angry');
+        document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
+        $('redflash').classList.remove('go'); void $('redflash').offsetWidth; $('redflash').classList.add('go');
+      }
+    }
+    function finish() {
+      state = 'end'; hint(''); $('prog').textContent = '';
+      const n = got.filter(Boolean).length;
+      $('score').innerHTML = `お<ruby>札<rt>ふだ</rt></ruby>：${n} / 6　` + (n === 6 ? 'おばけ<ruby>博士<rt>はかせ</rt></ruby>だ！' : n >= 4 ? 'なかなかの<ruby>勇者<rt>ゆうしゃ</rt></ruby>！' : 'もう<ruby>一度<rt>いちど</rt></ruby><ruby>挑戦<rt>ちょうせん</rt></ruby>しよう！');
+      $('roster').innerHTML = GHOSTS.map((g, i) => `<div class="${got[i] ? 'got' : ''}">${SVG[g.id]}${g.name}${got[i] ? ' ✓' : ''}</div>`).join('');
+      $('end').classList.add('on');
+    }
+    function reset() {
+      document.activeElement.blur();
+      cur = -1; got = []; state = 'title'; zone = -1;
+      build(); setCam(-1000); hud(); hint('');
+      $('end').classList.remove('on'); $('title').classList.add('on');
+    }
+
+    function poke(el) {
+      if (!el.classList.contains('awake')) return;
+      const g = GHOSTS[+el.dataset.i];
+      el.classList.remove('poke'); void el.offsetWidth; el.classList.add('poke', 'reveal');
+      const r = el.getBoundingClientRect(), bub = $('bubble'); // bóng thoại bám theo đầu con ma trên màn hình
+      if (innerWidth > 760) { // đầu sát mép trên thì đặt bóng thoại sang bên trái đầu
+        const high = r.top < 150;
+        bub.style.left = (high ? r.left - 60 : r.left + r.width / 2) + 'px'; bub.style.top = (high ? r.top + 150 : r.top + 20) + 'px';
+      }
+      bub.innerHTML = `<b class="brush">${g.line}</b><small>${g.sub}</small>`;
+      bub.classList.add('show');
+      speak(g);
+    }
+    // giọng đọc tiếng Nhật của trình duyệt; pitch/rate riêng cho từng con
+    const VOICE = { yurei: [.4, .6], yuki: [1.3, .7], teke: [1.6, 1.4], gasha: [.1, .5], kuchi: [1, .8], aka: [.3, .75] };
+    let audio;
+    function speak(g) {
+      try { // tiếng ù rùng rợn: 2 sóng sine lệch nhau, tắt dần
+        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        const t = audio.currentTime, gain = audio.createGain();
+        gain.connect(audio.destination);
+        gain.gain.setValueAtTime(.18, t); gain.gain.exponentialRampToValueAtTime(.001, t + 1.6);
+        [110, 116.5].forEach(f => { const o = audio.createOscillator(); o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f / 2, t + 1.6); o.connect(gain); o.start(t); o.stop(t + 1.6); });
+      } catch (e) {}
+      if (!window.speechSynthesis) return;
+      speechSynthesis.cancel();
+      const ja = speechSynthesis.getVoices().find(v => v.lang.startsWith('ja'));
+      [g.line, g.sub].forEach(text => {
+        const u = new SpeechSynthesisUtterance(text.replace(/（.*?）/g, '')); // bỏ furigana trước khi đọc
+        u.lang = 'ja-JP'; if (ja) u.voice = ja;
+        [u.pitch, u.rate] = VOICE[g.id];
+        speechSynthesis.speak(u);
+      });
+    }
+
+    /* ================= INPUT ================= */
+    function forward() {
+      if (state === 'title') start();
+      else if (state === 'cleared') next();
+      else if (state === 'end') reset();
+    }
+    document.addEventListener('keydown', e => {
+      if (state === 'quiz' && '123'.includes(e.key)) { const b = document.querySelectorAll('.opts button')[+e.key - 1]; if (b) answer(b); return; }
+      if (e.key === 'Enter' && document.activeElement.tagName === 'BUTTON') return; // để nút tự xử lý
+      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); forward(); }
+    });
+    document.addEventListener('click', e => {
+      const opt = e.target.closest('.opts button'), gh = e.target.closest('.ghost');
+      if (opt) answer(opt); else if (gh) poke(gh);
+    });
+    document.addEventListener('mousemove', e => { // nhìn quanh nhẹ theo chuột
+      const dx = e.clientX / innerWidth - .5, dy = e.clientY / innerHeight - .5;
+      $('look').style.transform = `rotateY(${dx * 6}deg) rotateX(${-dy * 3}deg)`;
+    });
+    $('startBtn').onclick = start;
+    $('againBtn').onclick = reset;
+    $('goBtn').onclick = forward;
+
+    reset();
+  </script>
+</body>
+</html>

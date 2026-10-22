@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>犬夜叉 四魂のかけら</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Yuji+Mai&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { font-family: 'Zen Maru Gothic', sans-serif; background: #1a1020; color: #fdf6e3; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+    .pop { font-family: 'Mochiy Pop One', sans-serif; }
+    .brush { font-family: 'Yuji Mai', 'Mochiy Pop One', serif; }
+    rt { font-size: .5em; }
+
+    /* ---------- STAGE ---------- */
+    #stage { position: relative; height: clamp(260px, 56vh, 480px); overflow: hidden; transition: background 1s; }
+    #ground { position: absolute; left: 0; right: 0; bottom: 0; height: 22%; transition: background 1s; }
+    #stage.hit::after { content: ''; position: absolute; inset: 0; background: rgba(193, 18, 31, .45); animation: fade .4s forwards; pointer-events: none; }
+    @keyframes fade { to { opacity: 0; } }
+
+    #inu { position: absolute; left: 4%; bottom: 12%; width: clamp(140px, 26vw, 230px); transition: transform .4s cubic-bezier(.5, 1.6, .5, 1); transform-origin: 50% 95%; z-index: 2; }
+    #inu img { width: 100%; height: auto; display: block; }
+    #inu.full { filter: drop-shadow(0 0 14px #e9c46a) brightness(1.1); }
+    #inu.down { transform: translate(30px, 10px) rotate(90deg); }
+    #bubble { position: absolute; left: 4%; bottom: calc(12% + clamp(189px, 35vw, 311px)); background: #fff; color: #1a1020; border-radius: 12px; padding: 4px 12px; font-weight: 700; z-index: 3; }
+    #bubble:empty { display: none; }
+
+    .mob { position: absolute; bottom: 14%; transform: translateX(-50%); text-align: center; z-index: 1; }
+    .mob .e { font-size: clamp(2.4rem, 7vw, 3.6rem); line-height: 1; display: block; }
+    .mob .w, #bword { display: inline-block; background: #fdf6e3; color: #1a1020; border: 3px solid #1a1020; border-radius: 8px; padding: 0 8px; font-size: clamp(1.3rem, 4vw, 1.9rem); font-weight: 700; margin-bottom: 4px; }
+    .mob.dead { animation: die .4s forwards; }
+    @keyframes die { to { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(1.4); filter: blur(4px); } }
+
+    #boss { position: absolute; right: 6%; bottom: 13%; text-align: center; width: clamp(150px, 34vw, 260px); }
+    #boss[hidden] { display: none; }
+    #boss .icon { font-size: clamp(5rem, 16vw, 8rem); line-height: 1; }
+    #boss .name { font-weight: 700; font-size: 1.1rem; text-shadow: 0 2px 4px #000; }
+    .bar { height: 10px; background: rgba(0, 0, 0, .45); border-radius: 5px; overflow: hidden; margin: 4px 0; }
+    .bar i { display: block; height: 100%; width: 100%; }
+    #bhp i { background: #c1121f; transition: width .3s; }
+    #btime i { background: #e9c46a; }
+    #bword { font-size: clamp(1.6rem, 5vw, 2.4rem); }
+    #boss.hurt .icon { animation: shake .3s; }
+    @keyframes shake { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+    #q { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: clamp(5rem, 18vw, 9rem); }
+    #q:empty { display: none; }
+
+    .slash { position: absolute; width: 180px; height: 180px; border-radius: 50%; border-top: 10px solid #fff; transform: translate(-50%, -50%) rotate(-35deg); animation: slash .45s forwards; pointer-events: none; z-index: 4;
+      filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px #9fd8ff); }
+    .slash::after { content: ''; position: absolute; inset: 20px; border-radius: 50%; border-top: 5px solid #fff; transform: rotate(70deg); }
+    @keyframes slash { from { clip-path: inset(0 100% 0 0); } 40% { clip-path: inset(0 0 0 0); opacity: 1; } to { opacity: 0; transform: translate(-50%, -50%) rotate(-35deg) scale(1.25); } }
+    #scar { position: absolute; inset: 0; pointer-events: none; z-index: 4; opacity: 0; }
+    #scar.go { animation: scar 1s; background: repeating-linear-gradient(170deg, transparent 0 40px, rgba(255, 236, 140, .9) 40px 46px, transparent 46px 90px); }
+    @keyframes scar { 0% { opacity: 0; clip-path: inset(0 100% 0 0); } 30% { opacity: 1; clip-path: inset(0 0 0 0); } 100% { opacity: 0; } }
+
+    #big { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); font-size: clamp(2.6rem, 10vw, 5rem); color: #fff; z-index: 5; white-space: nowrap;
+      text-shadow: 0 0 12px #c1121f, 0 4px 0 #1a1020; pointer-events: none; }
+    #big:empty { display: none; }
+    #big.show { animation: pop .3s; }
+    @keyframes pop { from { transform: translate(-50%, -50%) scale(2.5); opacity: 0; } }
+
+    /* ---------- HUD ---------- */
+    #hud { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 10px 16px; background: #2a1830; border-top: 3px solid #c1121f; }
+    #hud .hearts { color: #ff5d73; font-size: 1.3rem; letter-spacing: 2px; }
+    #shards { color: #f9c0e0; }
+    .gauge { display: flex; align-items: center; gap: 4px; }
+    .gauge span { width: 22px; height: 12px; border-radius: 3px; background: #4a3550; }
+    .gauge span.on { background: #e9c46a; box-shadow: 0 0 6px #e9c46a; }
+    #scarBtn { margin-left: 8px; }
+    #scarBtn:not(:disabled) { animation: glow 1s infinite alternate; }
+    @keyframes glow { to { box-shadow: 0 0 16px #e9c46a; } }
+
+    main { padding: 14px 16px 24px; }
+    form { display: flex; gap: 8px; max-width: 560px; margin: 0 auto; }
+    input { flex: 1; min-width: 0; font: inherit; font-size: 1.6rem; padding: 10px 14px; border: 3px solid #c1121f; border-radius: 12px; background: #fff; color: #1a1020; text-align: center; }
+    input:focus { outline: 3px solid #e9c46a; outline-offset: 2px; }
+    button { font: inherit; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 10px 18px; background: #c1121f; color: #fff; }
+    button:disabled { opacity: .35; cursor: default; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #e9c46a; outline-offset: 2px; }
+
+    /* ---------- TALK ---------- */
+    #talk { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(640px, calc(100% - 32px)); background: rgba(26, 16, 32, .95); border: 3px solid #fdf6e3;
+      border-radius: 14px; padding: 14px 18px 10px; z-index: 8; cursor: pointer; }
+    #talk[hidden] { display: none; }
+    #face { float: left; width: 56px; height: 56px; border-radius: 50%; background: #8ecae6 url(images/inuyasha.svg) -62px -16px / 170px 230px no-repeat; margin: 0 12px 4px 0; border: 2px solid #e9c46a; }
+    #face[hidden] { display: none; }
+    #who { color: #e9c46a; }
+    #line { font-size: 1.25rem; margin: 4px 0; min-height: 1.6em; }
+    #talk small { display: block; text-align: right; opacity: .6; }
+
+    /* ---------- OVERLAYS ---------- */
+    .over { position: fixed; inset: 0; background: rgba(15, 8, 20, .9); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 9; overflow-y: auto; }
+    .over[hidden] { display: none; }
+    .box { background: #fdf6e3; color: #1a1020; border-radius: 18px; padding: 24px 20px; width: min(480px, 100%); text-align: center; border: 4px solid #c1121f; max-height: 100%; overflow-y: auto; }
+    .box h1 { font-size: clamp(2.6rem, 10vw, 3.6rem); color: #c1121f; }
+    .box h2 { font-size: 2rem; color: #c1121f; }
+    .box p { margin: 8px 0; line-height: 1.6; }
+    .chapters { display: grid; gap: 10px; margin: 16px 0; }
+    .chapters button { font-size: 1.1rem; }
+    .box a { color: #1d3557; }
+    .review { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 12px 0; }
+    .review div { background: #fff; border: 2px solid #e0d2b6; border-radius: 8px; padding: 4px; }
+    .review b { display: block; font-size: 1.4rem; }
+    .review small { color: #8a5a2b; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="ground"></div>
+    <div id="inu">
+      <img src="images/inuyasha.svg" alt="犬夜叉">
+    </div>
+    <div id="bubble"></div>
+    <div id="mobs"></div>
+    <div id="boss" hidden>
+      <div id="bword"></div>
+      <div class="icon" id="bicon"></div>
+      <div class="name" id="bname"></div>
+      <div class="bar" id="bhp"><i></i></div>
+      <div class="bar" id="btime"><i></i></div>
+    </div>
+    <div id="q"></div>
+    <div id="scar"></div>
+    <div id="big"></div>
+  </div>
+
+  <div id="hud">
+    <span class="brush" id="chName"></span>
+    <span class="hearts" id="hearts" aria-label="体力"></span>
+    <span id="shards"></span>
+    <span class="gauge" aria-label="鉄砕牙ゲージ"><span></span><span></span><span></span><span></span><span></span>
+      <button id="scarBtn" type="button" disabled>風の傷！</button></span>
+  </div>
+
+  <main>
+    <form id="form" autocomplete="off">
+      <input id="ans" lang="ja" placeholder="ひらがなで入力" aria-label="読み（ひらがな）">
+      <button type="submit">斬る</button>
+    </form>
+  </main>
+
+  <div id="talk" hidden><span id="face" hidden></span><b id="who"></b><p id="line"></p><small>▼ Enter / クリック</small></div>
+
+  <div class="over" id="title">
+    <div class="box">
+      <h1 class="brush"><ruby>犬夜叉<rt>いぬやしゃ</rt></ruby></h1>
+      <p class="pop">〜 <ruby>四魂<rt>しこん</rt></ruby>のかけら<ruby>集<rt>あつ</rt></ruby>め 〜</p>
+      <p>妖怪の漢字の<b>読み</b>をひらがなで入力して倒そう！</p>
+      <div class="chapters" id="chapters"></div>
+      <a href="index.html">← もどる</a>
+    </div>
+  </div>
+
+  <div class="over" id="clear" hidden>
+    <div class="box">
+      <h2 class="brush" id="clearTitle"></h2>
+      <p>四魂のかけらを手に入れた！ ◆</p>
+      <p>この章の言葉</p>
+      <div class="review" id="review"></div>
+      <button id="nextBtn">次へ</button>
+    </div>
+  </div>
+
+  <div class="over" id="over" hidden>
+    <div class="box">
+      <h2 class="brush">やられた…</h2>
+      <p>もう一度ちょうせんしよう！</p>
+      <p><button id="retryBtn">もう一度</button> <button id="toTitleBtn">タイトルへ</button></p>
+    </div>
+  </div>
+
+<script>
+// w: [kanji, 読み]; nhiều cách đọc ngăn bằng |
+const CH = [
+  {
+    name: '第一章　楓の村', sky: 'linear-gradient(#8ecae6, #fdf0d5)', ground: '#6a994e', mobs: ['👹', '👺', '🐗'], travel: 15000, bossTime: 12000,
+    words: [['山', 'やま'], ['川', 'かわ'], ['森', 'もり'], ['火', 'ひ'], ['水', 'みず'], ['木', 'き'], ['花', 'はな'], ['空', 'そら'], ['雨', 'あめ'], ['石', 'いし'], ['風', 'かぜ'], ['月', 'つき']],
+    boss: { name: '百足上臈', icon: '🐛', words: [['神社', 'じんじゃ'], ['井戸', 'いど'], ['巫女', 'みこ'], ['弓矢', 'ゆみや'], ['百足', 'むかで']] },
+    intro: [['かごめ', 'ここは…戦国時代！？'], ['楓', '四魂の玉が砕けて、かけらが四方に飛び散ってしもうた…'], ['犬夜叉', 'けっ！かけらなんざ、おれがぜんぶ集めてやらあ！'],
+      ['かごめ', '妖怪が来る！漢字の読みをひらがなで入力して！'], ['かごめ', '5回連続で正解すると「風の傷」が使えるよ！'], ['楓', 'まちがえすぎると…言霊の念珠が発動するぞ。']],
+    bossLine: [['百足上臈', '四魂の玉をよこせぇぇ！']],
+    outro: [['犬夜叉', 'けっ、大したことねえな。'], ['かごめ', 'かけらを一つ取り戻した！']],
+  },
+  {
+    name: '第二章　妖怪の森', sky: 'linear-gradient(#1b3a2f, #476d4f)', ground: '#2d4a2a', mobs: ['🐺', '🐍', '🕷️'], travel: 13000, bossTime: 10000,
+    words: [['狐', 'きつね'], ['狼', 'おおかみ'], ['蛇', 'へび'], ['犬', 'いぬ'], ['猫', 'ねこ'], ['鳥', 'とり'], ['熊', 'くま'], ['猿', 'さる'], ['虫', 'むし'], ['馬', 'うま'], ['牛', 'うし'], ['狸', 'たぬき']],
+    boss: { name: '飛天', icon: '⚡', words: [['雷', 'かみなり'], ['稲妻', 'いなずま'], ['兄弟', 'きょうだい'], ['雲', 'くも'], ['嵐', 'あらし']] },
+    intro: [['七宝', 'おらは七宝じゃ！'], ['七宝', '雷獣兄弟に父ちゃんを殺されたんじゃ…仇を討ってくれ！'], ['犬夜叉', 'ちっ、しょうがねえな。']],
+    bossLine: [['飛天', 'この飛天様の雷を受けてみろ！']],
+    outro: [['七宝', '父ちゃん…仇を討ったぞ…！'], ['犬夜叉', '泣くんじゃねえよ、ガキ。']],
+  },
+  {
+    name: '第三章　古寺', sky: 'linear-gradient(#3c1f4f, #c06c84)', ground: '#4a3b35', mobs: ['👻', '💀', '🦇'], travel: 11000, bossTime: 9000,
+    words: [['寺', 'てら'], ['仏', 'ほとけ|ぶつ'], ['僧', 'そう'], ['鐘', 'かね'], ['墓', 'はか'], ['札', 'ふだ|さつ'], ['魂', 'たましい'], ['経', 'きょう'], ['百', 'ひゃく'], ['千', 'せん'], ['祈り', 'いのり'], ['呪い', 'のろい']],
+    boss: { name: '弥勒', icon: '📿', words: [['法師', 'ほうし'], ['数珠', 'じゅず'], ['風穴', 'かざあな'], ['錫杖', 'しゃくじょう'], ['結界', 'けっかい']] },
+    intro: [['弥勒', 'おや、美しいお嬢さん。わたしの子を産んでくださらんか？'], ['かごめ', 'え…ええっ！？'], ['犬夜叉', 'てめえ！かごめのかけらを盗んだのはお前だな！']],
+    bossLine: [['弥勒', '仕方ありませんな…風穴！']],
+    outro: [['弥勒', '参りました。わたしも奈落を追う身…仲間に加えていただけますかな。'], ['犬夜叉', 'けっ、勝手にしろ。']],
+  },
+];
+const WELL = {
+  intro: [['かごめ', 'ちょっと現代に帰るね！'], ['犬夜叉', 'おい待て！おれも行く！'], ['かごめ', '犬夜叉の質問に答えてあげて！']],
+  items: [['🍜', 'かっぷらーめん|らーめん'], ['🚲', 'じてんしゃ|自転車'], ['📱', 'すまほ|けいたい|携帯|でんわ|電話'], ['🍫', 'ちょこれーと|ちょこ'],
+    ['📷', 'かめら'], ['🎒', 'りゅっく|りゅっくさっく|かばん|鞄'], ['🧃', 'じゅーす'], ['⌚', 'とけい|時計|うでどけい|腕時計']],
+  outro: [['犬夜叉', '現代ってのは、へんなもんばっかりだな。'], ['かごめ', 'さあ、戦国時代にもどろう！']],
+};
+const ENDING = [['かごめ', '四魂のかけらを三つ取り戻した！'], ['犬夜叉', '奈落のやろう…待ってろよ。'], ['', '── つづく ──']];
+
+// ---------- 判定 ----------
+// カタカナはひらがなに揃える (カップラーメン = かっぷらーめん)
+const kana = s => s.normalize('NFKC').replace(/\s/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const match = (yomi, v) => yomi.split('|').some(r => kana(r) === kana(v));
+console.assert(match('ほとけ|ぶつ', ' ぶつ') && match('かっぷらーめん', 'カップラーメン') && match('じてんしゃ|自転車', '自転車') && !match('やま', '山'), 'match self-check');
+
+// ---------- 状態 ----------
+const $ = id => document.getElementById(id);
+const HIT_X = 30, START_X = 96, MAX_MOBS = 3, SPAWN_MS = 1800, SCAR_NEED = 5;
+let phase = 'idle', finish, ch, hearts, streak, misses, stunned, mobs = [], pool, spawnT, boss, bossT, shards, last = 0, talkNext = null;
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+let unlocked = 0;
+try { unlocked = +localStorage.getItem('inuyasha-unlocked') || 0; } catch (e) {}
+function unlock(i) { unlocked = Math.max(unlocked, Math.min(i, CH.length - 1)); try { localStorage.setItem('inuyasha-unlocked', unlocked); } catch (e) {} }
+
+function hud() {
+  $('hearts').textContent = '♥'.repeat(Math.max(hearts, 0)) + '♡'.repeat(5 - Math.max(hearts, 0));
+  $('shards').textContent = '四魂のかけら ' + '◆'.repeat(shards) + '◇'.repeat(CH.length - shards);
+  document.querySelectorAll('.gauge > span').forEach((s, i) => s.classList.toggle('on', i < streak));
+  const full = streak >= SCAR_NEED && (phase === 'wave' || phase === 'boss');
+  $('scarBtn').disabled = !full;
+  $('inu').classList.toggle('full', full);
+}
+
+function big(text, ms = 1200) { const b = $('big'); b.textContent = text; b.classList.remove('show'); b.offsetWidth; b.classList.add('show'); setTimeout(() => { if (b.textContent === text) b.textContent = ''; }, ms); }
+function bubble(text, ms = 1500) { $('bubble').textContent = text; setTimeout(() => { if ($('bubble').textContent === text) $('bubble').textContent = ''; }, ms); }
+const HIT_DELAY = 220; // lúc lưỡi đao chạm địch
+let swing;
+function slashAt(el) {
+  const inu = $('inu');
+  if (swing) swing.cancel();
+  const r = el.getBoundingClientRect(), st = $('stage').getBoundingClientRect(), ir = inu.getBoundingClientRect();
+  const dx = Math.max(r.left + r.width / 2 - ir.right + ir.width * .25, 0); // lao tới sát địch
+  swing = inu.animate([
+    { transform: 'none' },
+    { transform: `translateX(${dx * .6}px) rotate(-14deg)`, offset: .3 },
+    { transform: `translateX(${dx}px) rotate(22deg)`, offset: .45 },
+    { transform: `translateX(${dx}px) rotate(22deg)`, offset: .7 },
+    { transform: 'none' },
+  ], { duration: 520, easing: 'ease-out' });
+  setTimeout(() => {
+    const s = document.createElement('div');
+    s.className = 'slash'; s.style.left = (r.left + r.width / 2 - st.left) + 'px'; s.style.top = (r.top + r.height / 2 - st.top) + 'px';
+    $('stage').appendChild(s); setTimeout(() => s.remove(), 450);
+  }, HIT_DELAY);
+}
+
+// ---------- 会話 ----------
+function talk(lines) {
+  return new Promise(res => {
+    let i = 0;
+    const box = $('talk');
+    talkNext = () => {
+      if (i >= lines.length) { box.hidden = true; talkNext = null; res(); return; }
+      const [who, line] = lines[i++];
+      $('face').hidden = who !== '犬夜叉'; $('who').textContent = who; $('line').textContent = line;
+    };
+    box.hidden = false; talkNext();
+  });
+}
+$('talk').addEventListener('click', () => talkNext && talkNext());
+
+// ---------- 戦闘 ----------
+function spawn() {
+  const [k, r] = pool.shift();
+  const el = document.createElement('div');
+  el.className = 'mob';
+  el.innerHTML = `<span class="w">${k}</span><span class="e">${ch.mobs[Math.random() * ch.mobs.length | 0]}</span>`;
+  $('mobs').appendChild(el);
+  mobs.push({ el, k, r, x: START_X });
+}
+
+function hurt() {
+  hearts--; streak = 0; hud();
+  const st = $('stage'); st.classList.remove('hit'); st.offsetWidth; st.classList.add('hit');
+  if (hearts <= 0) end(false);
+}
+
+function end(ok) { phase = 'idle'; mobs.forEach(m => m.el.remove()); mobs = []; $('boss').hidden = true; hud(); finish(ok); }
+
+function wave() {
+  return new Promise(res => {
+    finish = res; phase = 'wave';
+    pool = shuffle(ch.words.slice()).slice(0, 8);
+    spawnT = 0; hud();
+  });
+}
+
+function setBossWord() { $('bword').textContent = boss.words[0][0]; bossT = ch.bossTime; }
+
+function bossFight() {
+  return new Promise(res => {
+    finish = res;
+    boss = { words: shuffle(ch.boss.words.slice()), max: ch.boss.words.length };
+    $('bicon').textContent = ch.boss.icon; $('bname').textContent = ch.boss.name;
+    $('bhp').firstElementChild.style.width = '100%';
+    $('boss').hidden = false;
+    setBossWord(); phase = 'boss'; hud();
+  });
+}
+
+function hitBoss(n) {
+  boss.words.splice(0, n);
+  $('bhp').firstElementChild.style.width = (boss.words.length / boss.max * 100) + '%';
+  slashAt($('bicon'));
+  setTimeout(() => { const b = $('boss'); b.classList.remove('hurt'); b.offsetWidth; b.classList.add('hurt'); }, HIT_DELAY);
+  if (!boss.words.length) { phase = 'idle'; shards++; setTimeout(() => { big('撃破！'); end(true); }, HIT_DELAY + 300); } else setBossWord();
+}
+
+function correct() { streak++; misses = 0; hud(); }
+
+function wrong() {
+  streak = 0; misses++;
+  const inp = $('ans'); inp.animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], 300);
+  if (misses >= 3) osuwari(); else bubble(['ちがう！', 'なにやってんだ！', 'しっかりしろ！'][misses - 1]);
+  hud();
+}
+
+function osuwari() {
+  misses = 0; stunned = true;
+  big('おすわり！', 1600);
+  bubble('ぐえっ！');
+  $('inu').classList.add('down');
+  setTimeout(() => { $('inu').classList.remove('down'); stunned = false; }, 2600);
+}
+
+function windScar() {
+  if (streak < SCAR_NEED || stunned) return;
+  streak = 0;
+  big('風の傷！');
+  const s = $('scar'); s.classList.remove('go'); s.offsetWidth; s.classList.add('go');
+  if (phase === 'wave') mobs.splice(0).forEach(m => { m.el.classList.add('dead'); setTimeout(() => m.el.remove(), 400); });
+  else if (phase === 'boss') hitBoss(3);
+  hud(); $('ans').focus();
+}
+
+function tick(t) {
+  const dt = Math.min(t - last, 100); last = t;
+  if (phase === 'wave') {
+    spawnT -= dt;
+    if (spawnT <= 0 && mobs.length < MAX_MOBS && pool.length) { spawn(); spawnT = SPAWN_MS; }
+    const speed = (START_X - HIT_X) / ch.travel;
+    for (const m of mobs.slice()) {
+      m.x -= speed * dt;
+      m.el.style.left = m.x + '%';
+      if (m.x <= HIT_X) { mobs.splice(mobs.indexOf(m), 1); m.el.remove(); pool.push([m.k, m.r]); hurt(); if (phase !== 'wave') break; }
+    }
+    if (phase === 'wave' && !pool.length && !mobs.length) { phase = 'idle'; hud(); finish(true); }
+  } else if (phase === 'boss') {
+    bossT -= dt;
+    $('btime').firstElementChild.style.width = Math.max(bossT / ch.bossTime * 100, 0) + '%';
+    if (bossT <= 0) { boss.words.push(boss.words.shift()); setBossWord(); hurt(); }
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ---------- 井戸（現代） ----------
+let wellNext = null;
+async function well() {
+  $('stage').style.background = 'linear-gradient(#cde7f0, #fff)'; $('ground').style.background = '#b0b7bf';
+  $('chName').textContent = '現代　かごめの家';
+  await talk(WELL.intro);
+  for (const [icon, ans] of shuffle(WELL.items.slice()).slice(0, 3)) {
+    $('q').textContent = icon;
+    bubble('これは何だ？', 99999);
+    const v = await new Promise(res => { wellNext = res; phase = 'well'; });
+    phase = 'idle'; wellNext = null;
+    bubble(match(ans, v) ? 'へえ〜、そうなのか！' : 'わからねえな…', 1400);
+    await new Promise(r => setTimeout(r, 1400));
+  }
+  $('q').textContent = '';
+  await talk(WELL.outro);
+}
+
+// ---------- 入力 ----------
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  if (talkNext) { talkNext(); return; }
+  const v = $('ans').value.trim();
+  if (!v || stunned) return;
+  $('ans').value = '';
+  if (phase === 'well') return wellNext(v);
+  if (streak >= SCAR_NEED && match('かぜのきず', v)) return windScar();
+  if (phase === 'wave') {
+    const m = mobs.filter(m => match(m.r, v)).sort((a, b) => a.x - b.x)[0]; // 一番近い敵を斬る
+    if (!m) return wrong();
+    mobs.splice(mobs.indexOf(m), 1);
+    slashAt(m.el); setTimeout(() => m.el.classList.add('dead'), HIT_DELAY); setTimeout(() => m.el.remove(), HIT_DELAY + 400);
+    correct();
+  } else if (phase === 'boss') {
+    if (!match(boss.words[0][1], v)) return wrong();
+    correct(); hitBoss(1);
+  }
+});
+$('scarBtn').addEventListener('click', windScar);
+
+// ---------- 流れ ----------
+async function chapter(i) {
+  ch = CH[i]; hearts = 5; streak = 0; misses = 0; stunned = false; shards = i;
+  $('stage').style.background = ch.sky; $('ground').style.background = ch.ground;
+  $('chName').textContent = ch.name; $('inu').classList.remove('down');
+  hud(); big(ch.name.replace('　', ' '), 2000);
+  await talk(ch.intro);
+  if (!await wave()) return false;
+  await talk(ch.bossLine);
+  if (!await bossFight()) return false;
+  await talk(ch.outro);
+  return true;
+}
+
+function clearScreen(i) {
+  $('clearTitle').textContent = CH[i].name.split('　')[0] + ' クリア！';
+  $('review').innerHTML = [...CH[i].words, ...CH[i].boss.words].map(([k, r]) => `<div><b>${k}</b><small>${r.replace('|', '・')}</small></div>`).join('');
+  $('clear').hidden = false; $('nextBtn').focus();
+  return new Promise(res => { $('nextBtn').onclick = () => { $('clear').hidden = true; $('ans').focus(); res(); }; });
+}
+
+async function run(i) {
+  $('title').hidden = true; $('over').hidden = true; $('ans').focus();
+  for (; i < CH.length; i++) {
+    if (!await chapter(i)) { $('over').hidden = false; $('retryBtn').onclick = () => run(i); $('retryBtn').focus(); return; }
+    unlock(i + 1);
+    await clearScreen(i);
+    if (i < CH.length - 1) await well();
+  }
+  await talk(ENDING);
+  showTitle();
+}
+
+function showTitle() {
+  $('over').hidden = true; $('title').hidden = false;
+  $('chapters').innerHTML = CH.map((c, i) => `<button ${i > unlocked ? 'disabled' : ''} data-i="${i}">${i > unlocked ? '🔒 ' : ''}${c.name}</button>`).join('');
+  $('chapters').querySelectorAll('button').forEach(b => b.onclick = () => run(+b.dataset.i));
+}
+$('toTitleBtn').addEventListener('click', showTitle);
+hearts = 5; streak = 0; shards = 0; hud();
+showTitle();
+</script>
+</body>
+</html>

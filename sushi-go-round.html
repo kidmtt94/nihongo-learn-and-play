@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>回転寿司</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Yuji+Mai&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { font-family: 'Zen Maru Gothic', sans-serif; background: #2a1810; color: #2a1810; overflow-x: hidden;
+      display: flex; flex-direction: column; min-height: 100vh; }
+    .pop { font-family: 'Mochiy Pop One', sans-serif; }
+    .brush { font-family: 'Yuji Mai', 'Mochiy Pop One', serif; }
+
+    /* ---------- NOREN + PROGRESS ---------- */
+    header { background: #1d3557; color: #fdf6e3; padding: 14px 16px 18px; text-align: center; position: relative;
+      background-image: repeating-linear-gradient(90deg, transparent 0 calc(20% - 3px), #12233b calc(20% - 3px) 20%); }
+    header h1 { font-size: clamp(1.6rem, 5vw, 2.4rem); letter-spacing: .15em; }
+    header p { font-size: .85rem; opacity: .8; margin-top: 2px; }
+    .menu { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; max-width: 760px; margin: 12px auto 0; }
+    .menu div { background: #fdf6e3; border-radius: 8px; padding: 2px 2px 4px; text-align: center; opacity: .45; transition: opacity .4s, transform .4s; }
+    .menu div.done { opacity: 1; transform: translateY(-3px); box-shadow: 0 0 0 3px #e9c46a; }
+    .menu svg { width: 100%; height: auto; display: block; }
+    .menu b { display: block; font-size: clamp(.55rem, 1.8vw, .85rem); color: #1d3557; min-height: 1.2em; }
+    @media (max-width: 560px) { .menu { grid-template-columns: repeat(5, 1fr); } }
+
+    /* ---------- CONVEYOR ---------- */
+    .lane { position: relative; height: clamp(170px, 32vh, 260px); margin-top: 18px; overflow: hidden; }
+    .belt { position: absolute; left: 0; right: 0; top: 18%; bottom: 10%; background:
+      repeating-linear-gradient(90deg, #b8bfc6 0 58px, #8d969e 58px 62px); border-top: 8px solid #dfe4e8; border-bottom: 8px solid #6c757d; }
+    .belt.run { animation: roll .6s linear infinite; }
+    @keyframes roll { to { background-position: 62px 0; } }
+    .plate { position: absolute; bottom: 4%; left: -30%; width: min(280px, 62vw); transform: translateX(-50%); }
+    .plate svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .35)); }
+    .counter { height: 22px; background: linear-gradient(#c58b4e, #8a5a2b); border-top: 3px solid #e2b07a; }
+
+    /* ---------- ORDER CARD ---------- */
+    main { flex: 1; background: #f4e9d4; padding: 18px 16px 28px; }
+    .card { max-width: 560px; margin: 0 auto; text-align: center; }
+    .timer { height: 10px; background: #e0d2b6; border-radius: 5px; overflow: hidden; margin-bottom: 14px; }
+    .timer i { display: block; height: 100%; width: 0; background: #e76f51; }
+    .cat { font-size: .95rem; color: #8a5a2b; }
+    .vi { font-size: clamp(1.5rem, 5vw, 2rem); margin: 4px 0 2px; color: #1d3557; }
+    form { display: flex; gap: 8px; margin-top: 10px; }
+    input { flex: 1; min-width: 0; font: inherit; font-size: 1.6rem; padding: 10px 14px; border: 3px solid #1d3557; border-radius: 12px; background: #fff; text-align: center; }
+    input:focus { outline: 3px solid #e9c46a; outline-offset: 2px; }
+    button { font: inherit; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 10px 16px; background: #1d3557; color: #fdf6e3; }
+    button.ghost { background: transparent; color: #1d3557; text-decoration: underline; padding: 8px; margin-top: 6px; }
+    button:focus-visible { outline: 3px solid #e9c46a; outline-offset: 2px; }
+    .msg { min-height: 2.6em; margin-top: 10px; font-size: 1.15rem; }
+    .msg.ok { color: #2a9d8f; } .msg.ng { color: #c1121f; }
+    .shake { animation: shake .4s; }
+    @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+    /* ---------- OVERLAY ---------- */
+    .over { position: fixed; inset: 0; background: rgba(20, 12, 8, .82); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 5; }
+    .over[hidden] { display: none; }
+    .box { background: #fdf6e3; border-radius: 18px; padding: 26px 22px; max-width: 460px; text-align: center; border: 4px solid #1d3557; }
+    .box h2 { font-size: 2rem; color: #c1121f; }
+    .box p { margin: 10px 0; line-height: 1.6; }
+    .box button { margin-top: 8px; font-size: 1.1rem; padding: 12px 26px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="brush">回転寿司</h1>
+    <p>料理の名前を<b>漢字</b>で入力して食べよう</p>
+    <div class="menu" id="menu"></div>
+  </header>
+
+  <div class="lane">
+    <div class="belt" id="belt"></div>
+    <div class="plate" id="plate"></div>
+  </div>
+  <div class="counter"></div>
+
+  <main>
+    <div class="card" id="card">
+      <div class="timer"><i id="bar"></i></div>
+      <div class="cat" id="cat">&nbsp;</div>
+      <div class="vi pop" id="vi">お皿を待っています…</div>
+      <form id="form" autocomplete="off">
+        <input id="ans" lang="ja" placeholder="例：鮪" aria-label="料理名（漢字）">
+        <button type="submit">食べる</button>
+      </form>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <div class="over" id="start">
+    <div class="box">
+      <h2 class="brush">いらっしゃいませ！</h2>
+      <p>回転レーンに<b>10種類</b>の料理が流れてきます。お皿は目の前で<b>30秒</b>止まります。</p>
+      <p>料理の名前を<b>漢字</b>で入力してEnter。正解なら食べられます。まちがえたり時間切れになると、お皿は流れていきます。次に来た時にもう一度！</p>
+      <p>10種類ぜんぶ食べたらクリア！</p>
+      <button id="go">はじめる</button>
+    </div>
+  </div>
+
+  <div class="over" id="end" hidden>
+    <div class="box">
+      <h2 class="brush">ごちそうさまでした！</h2>
+      <p id="stats"></p>
+      <button id="again">もう一回</button>
+    </div>
+  </div>
+
+<script>
+// k = đáp án kanji chính, alt = cách viết kanji khác cũng chấp nhận
+const DISHES = [
+  { k: '鮪', r: 'まぐろ', cat: '握り寿司', type: 'nigiri', rim: '#c1121f', c: '#c8283c', s: '#e85a6e' },
+  { k: '鮭', r: 'さけ', cat: '握り寿司', type: 'nigiri', rim: '#1d3557', c: '#f4845f', s: '#fde2d4' },
+  { k: '海老', alt: ['蝦'], r: 'えび', cat: '握り寿司', type: 'nigiri', rim: '#e9c46a', c: '#f9f1e6', s: '#e8552c', tail: true },
+  { k: '玉子', alt: ['卵'], r: 'たまご', cat: '握り寿司', type: 'nigiri', rim: '#2a9d8f', c: '#f6d04d', s: '#e9b72c', band: true },
+  { k: '鯛', r: 'たい', cat: '刺身', type: 'sashimi', rim: '#1d3557', c: '#fbe3e1', s: '#f2a7a0' },
+  { k: '烏賊', r: 'いか', cat: '刺身', type: 'sashimi', rim: '#2a9d8f', c: '#fbfbf7', s: '#dfe3e3' },
+  { k: '蛸', alt: ['章魚'], r: 'たこ', cat: '刺身', type: 'sashimi', rim: '#c1121f', c: '#fff5f0', s: '#9b2242' },
+  { k: '雲丹', alt: ['海胆'], r: 'うに', cat: '軍艦巻', type: 'gunkan', rim: '#e9c46a' },
+  { k: '鉄火巻', alt: ['鉄火巻き'], r: 'てっかまき', cat: '巻物', type: 'maki', rim: '#2a9d8f' },
+  { k: '茶碗蒸し', alt: ['茶碗蒸'], r: 'ちゃわんむし', cat: '名物', type: 'cup', rim: '#1d3557' },
+];
+
+// ---------- SVG ----------
+const plate = rim => `<ellipse cx="110" cy="112" rx="98" ry="22" fill="${rim}"/><ellipse cx="110" cy="108" rx="84" ry="16" fill="#fffdf6"/>`;
+const grains = (n, y) => Array.from({ length: n }, (_, i) => `<ellipse cx="${62 + i * 13}" cy="${y + (i % 2) * 6}" rx="4" ry="2.5" fill="#fff" stroke="#e5dcc4"/>`).join('');
+const DRAW = {
+  nigiri: d => `<rect x="52" y="70" width="116" height="38" rx="19" fill="#fbf7ea" stroke="#e5dcc4" stroke-width="2"/>${grains(8, 96)}
+    <path d="M40 82 Q58 48 110 50 Q162 48 182 80 Q170 92 110 88 Q50 92 40 82Z" fill="${d.c}" stroke="${d.s}" stroke-width="2"/>
+    ${[0, 1, 2, 3].map(i => `<path d="M${68 + i * 26} 56 q-8 14 -4 28" stroke="${d.s}" stroke-width="5" fill="none" opacity=".75"/>`).join('')}
+    ${d.tail ? '<path d="M176 74 l28 -20 l-6 26z" fill="#e8552c"/>' : ''}
+    ${d.band ? '<rect x="100" y="46" width="22" height="62" fill="#1e2a1f"/>' : ''}`,
+  sashimi: d => `${Array.from({ length: 9 }, (_, i) => `<path d="M${64 + i * 10} 104 q${i % 2 ? 6 : -6} -22 ${i % 3 - 1} -40" stroke="#fff" stroke-width="3" fill="none"/>`).join('')}
+    <ellipse cx="82" cy="72" rx="30" ry="18" fill="#3a8a3a" transform="rotate(-25 82 72)"/>
+    ${[0, 1, 2].map(i => `<ellipse cx="${96 + i * 22}" cy="${82 - i * 4}" rx="34" ry="15" fill="${d.c}" stroke="${d.s}" stroke-width="${d.type === 'sashimi' && d.k === '蛸' ? 7 : 3}" transform="rotate(${-20 + i * 8} ${96 + i * 22} ${82 - i * 4})"/>`).join('')}`,
+  gunkan: () => `<rect x="62" y="56" width="96" height="50" rx="12" fill="#22301f"/><rect x="62" y="70" width="96" height="6" fill="#33452f"/>
+    <ellipse cx="110" cy="58" rx="48" ry="12" fill="#f3efe0"/>
+    ${[[84, 52], [100, 46], [118, 48], [134, 54], [94, 58], [114, 58], [128, 60]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10" fill="#f2a12b" stroke="#d9801a" stroke-width="2"/>`).join('')}
+    <path d="M150 40 q14 6 10 24 q-12 -8 -10 -24z" fill="#6ab04c"/>`,
+  maki: () => [70, 110, 150].map(x => `<rect x="${x - 20}" y="80" width="40" height="22" fill="#1e2a1f"/><ellipse cx="${x}" cy="102" rx="20" ry="7" fill="#1e2a1f"/>
+    <ellipse cx="${x}" cy="80" rx="20" ry="9" fill="#1e2a1f"/><ellipse cx="${x}" cy="80" rx="16" ry="7" fill="#fbf7ea"/><ellipse cx="${x}" cy="80" rx="7" ry="3.5" fill="#c8283c"/>`).join(''),
+  cup: () => `<ellipse cx="110" cy="104" rx="56" ry="10" fill="#d9cfb8"/><path d="M68 62 L76 100 Q110 110 144 100 L152 62Z" fill="#e9e3d3" stroke="#bfb39a" stroke-width="2"/>
+    <path d="M82 76 q14 -8 28 0 q14 8 28 0" stroke="#2f5d8a" stroke-width="3" fill="none"/>
+    <ellipse cx="110" cy="62" rx="44" ry="12" fill="#f1ebdc" stroke="#bfb39a" stroke-width="2"/><ellipse cx="110" cy="50" rx="10" ry="5" fill="#2f5d8a"/>`,
+};
+const art = (d, empty) => `<svg viewBox="0 0 220 140" aria-hidden="true">${plate(d.rim)}${empty ? grains(3, 106) : DRAW[d.type](d)}</svg>`;
+
+// ---------- CHẤM ĐÁP ÁN ----------
+// Bỏ đuôi kiểu "の刺身" / "握り" / "寿司" để "鯛の刺身" vẫn tính là 鯛
+const norm = s => s.normalize('NFKC').replace(/\s/g, '').replace(/の?(刺身|刺し身|握り|寿司|鮨)$/, '');
+const isRight = (d, s) => [d.k, ...(d.alt || [])].some(a => norm(a) === norm(s));
+console.assert(isRight(DISHES[0], ' 鮪 ') && isRight(DISHES[4], '鯛の刺身') && isRight(DISHES[2], '蝦') && !isRight(DISHES[0], 'まぐろ') && !isRight(DISHES[1], '鮪'), 'isRight self-check');
+
+// ---------- GAME ----------
+const $ = id => document.getElementById(id);
+const WAIT = 30000, MOVE = 1600;
+let left, queue, cur, state = 'idle', timer, t0, tries;
+
+$('menu').innerHTML = DISHES.map((d, i) => `<div id="m${i}">${art(d)}<b>？</b></div>`).join('');
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function nextDish() {
+  if (!queue.length) queue = shuffle(left.filter(d => d !== cur || left.length === 1)); // vòng mới, không lặp ngay món vừa qua
+  return queue.shift();
+}
+
+function slide(to, ease) {
+  const p = $('plate');
+  p.style.transition = `left ${MOVE}ms ${ease}`;
+  p.style.left = to;
+  $('belt').classList.add('run');
+}
+
+function arrive() {
+  cur = nextDish();
+  const p = $('plate');
+  p.innerHTML = art(cur);
+  p.style.transition = 'none'; p.style.left = '-30%'; p.offsetWidth;
+  slide('50%', 'ease-out');
+  setTimeout(stop, MOVE);
+}
+
+function stop() {
+  $('belt').classList.remove('run');
+  state = 'wait';
+  $('cat').textContent = cur.cat;
+  $('vi').textContent = 'これは何？';
+  $('msg').textContent = ''; $('msg').className = 'msg';
+  $('ans').value = '';
+  $('ans').focus();
+  const bar = $('bar');
+  bar.style.transition = 'none'; bar.style.width = '100%'; bar.offsetWidth;
+  bar.style.transition = `width ${WAIT}ms linear`; bar.style.width = '0';
+  timer = setTimeout(() => miss('時間切れ！'), WAIT);
+}
+
+function freezeBar() { const bar = $('bar'); bar.style.width = getComputedStyle(bar).width; bar.style.transition = 'none'; }
+
+function say(text, ok) { const m = $('msg'); m.innerHTML = text; m.className = 'msg ' + (ok ? 'ok' : 'ng'); }
+
+function submit(e) {
+  e.preventDefault();
+  const v = $('ans').value.trim();
+  if (state !== 'wait' || !v) return;
+  tries++;
+  clearTimeout(timer); freezeBar();
+  if (isRight(cur, v)) eat(); else miss(`ちがう…「${v.replace(/[<&]/g, '')}」`);
+}
+
+function eat() {
+  state = 'moving';
+  const i = DISHES.indexOf(cur);
+  left = left.filter(d => d !== cur);
+  queue = queue.filter(d => d !== cur);
+  $('plate').innerHTML = art(cur, true);
+  $('m' + i).classList.add('done');
+  $('m' + i).querySelector('b').textContent = cur.k;
+  say(`おいしい！ <b class="pop">${cur.k}</b>（${cur.r}）`, true);
+  setTimeout(leave, 1100);
+}
+
+function miss(why) {
+  state = 'moving';
+  freezeBar();
+  $('card').classList.remove('shake'); $('card').offsetWidth; $('card').classList.add('shake');
+  say(`${why}<br>また次の回で！`, false);
+  setTimeout(leave, 2200);
+}
+
+function leave() {
+  slide('130%', 'ease-in');
+  setTimeout(() => left.length ? arrive() : win(), MOVE);
+}
+
+function win() {
+  $('belt').classList.remove('run');
+  const sec = Math.round((Date.now() - t0) / 1000);
+  $('stats').innerHTML = `タイム：<b>${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</b><br>入力回数：<b>${tries}</b> · 正解率：<b>${Math.round(1000 / tries)}%</b>`;
+  $('end').hidden = false;
+  $('again').focus();
+}
+
+function start() {
+  left = DISHES.slice(); queue = []; cur = null; tries = 0; t0 = Date.now();
+  DISHES.forEach((d, i) => { $('m' + i).classList.remove('done'); $('m' + i).querySelector('b').textContent = '？'; });
+  $('start').hidden = true; $('end').hidden = true;
+  $('ans').focus(); // mở bàn phím trên điện thoại ngay trong cú click
+  arrive();
+}
+
+$('form').addEventListener('submit', submit);
+$('go').addEventListener('click', start);
+$('again').addEventListener('click', start);
+</script>
+</body>
+</html>
