@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>駅のアナウンス</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Yuji+Mai&family=DotGothic16&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Zen Maru Gothic', sans-serif; background: #f4e9d4; color: #2a1810; min-height: 100vh; overflow-x: hidden; }
+    .pop { font-family: 'Mochiy Pop One', sans-serif; }
+    .brush { font-family: 'Yuji Mai', 'Mochiy Pop One', serif; }
+    rt { font-size: .5em; }
+    button { font: inherit; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 10px 16px; background: #1d3557; color: #fdf6e3; }
+    button:focus-visible { outline: 3px solid #e9c46a; outline-offset: 2px; }
+    button:disabled { cursor: default; opacity: .5; }
+
+    /* ---------- TOA TÀU: khung cửa sổ + bảng LED ---------- */
+    .car { background: #d8d2c4; padding: 12px 16px 14px; border-bottom: 6px solid #9a917f; }
+    .top { display: flex; align-items: center; gap: 10px; max-width: 760px; margin: 0 auto 10px; }
+    .led { flex: 1; min-width: 0; background: #111; border: 4px solid #444; border-radius: 8px; padding: 6px 12px; font-family: 'DotGothic16', monospace;
+      color: #ff9f1c; font-size: clamp(1rem, 4vw, 1.5rem); white-space: nowrap; overflow: hidden; text-shadow: 0 0 6px rgba(255, 159, 28, .6); }
+    .led span { display: inline-block; }
+    .led.scroll span { animation: marquee 6s linear infinite; }
+    @keyframes marquee { from { transform: translateX(60%); } to { transform: translateX(-100%); } }
+    .hud { display: flex; gap: 6px; font-size: 1.2rem; white-space: nowrap; }
+    .hud b { background: #fffdf6; border-radius: 99px; padding: 2px 10px; }
+
+    .windows { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 760px; margin: 0 auto; }
+    .win { position: relative; height: clamp(110px, 22vh, 170px); border-radius: 14px; overflow: hidden; border: 6px solid #f2efe8;
+      box-shadow: inset 0 0 0 2px #9a917f; background: linear-gradient(#8ecae6, #cfe8f3); }
+    .win i { position: absolute; left: 0; right: 0; background-repeat: repeat-x; }
+    /* 3 lớp cảnh chạy với tốc độ khác nhau cho có chiều sâu */
+    .far { bottom: 28%; height: 45%; background-image: repeating-linear-gradient(90deg, #a3b8c8 0 40px, transparent 40px 52px, #b7c7d3 52px 80px, transparent 80px 96px); background-size: 96px 100%;
+      clip-path: polygon(0 30%, 10% 30%, 10% 0, 22% 0, 22% 40%, 40% 40%, 40% 15%, 55% 15%, 55% 35%, 70% 35%, 70% 5%, 85% 5%, 85% 30%, 100% 30%, 100% 100%, 0 100%); }
+    .near { bottom: 18%; height: 34%; background-image: repeating-linear-gradient(90deg, #5c677d 0 34px, #f4e9d4 34px 36px, #7d8597 36px 70px, transparent 70px 90px); background-size: 90px 100%; }
+    .ground { bottom: 0; height: 20%; background: repeating-linear-gradient(90deg, #6a994e 0 22px, #588142 22px 26px); background-size: 26px 100%; }
+    .pole { position: absolute; top: 0; bottom: 0; width: 6px; background: #444; left: 110%; }
+    .run .far { animation: slide 9s linear infinite; }
+    .run .near { animation: slide 2.4s linear infinite; }
+    .run .ground { animation: slide .4s linear infinite; }
+    .run .pole { animation: pole 1.3s linear infinite; }
+    @keyframes slide { to { background-position: -480px 0; } }
+    @keyframes pole { from { left: 110%; } to { left: -10%; } }
+    /* lúc dừng ở ga: hiện sân ga + biển tên ga */
+    .platform { position: absolute; inset: auto 0 0 0; height: 40%; background: #b0a99a; border-top: 6px solid #f1c40f; display: none; }
+    .sign { position: absolute; top: 14%; left: 50%; transform: translateX(-50%); background: #fff; border: 3px solid #2a9d8f; border-radius: 6px;
+      padding: 2px 14px; font-size: clamp(1rem, 4vw, 1.6rem); white-space: nowrap; display: none; text-align: center; line-height: 1.2; }
+    .sign small { display: block; font-size: .5em; color: #555; }
+    .stop .platform, .stop .sign { display: block; }
+    .stop .far, .stop .near { opacity: .5; }
+    .car.shake { animation: rock .5s ease-in-out infinite alternate; }
+    @keyframes rock { to { transform: translateY(1.5px); } }
+
+    /* ---------- KHU CÂU HỎI ---------- */
+    main { max-width: 760px; margin: 0 auto; padding: 14px 16px 32px; }
+    .ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; text-align: center; }
+    .q { font-size: clamp(1.05rem, 3.6vw, 1.3rem); color: #1d3557; font-weight: 700; }
+    .q small { display: block; font-weight: 500; font-size: .8em; color: #8a5a2b; }
+    .replay { background: #e9c46a; color: #2a1810; }
+    .msg { min-height: 1.6em; text-align: center; margin: 8px 0; font-size: 1.15rem; font-weight: 700; }
+    .msg.ok { color: #2a9d8f; } .msg.ng { color: #c1121f; }
+
+    /* bản đồ tuyến: các ga nối bằng một dải màu */
+    .map { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 6px; }
+    .map::before { content: ''; position: absolute; inset: 18px 8px; border: 8px solid #2a9d8f; border-radius: 40px; opacity: .35; pointer-events: none; }
+    .st { position: relative; background: #fffdf6; color: #1d3557; border: 3px solid #1d3557; border-radius: 14px; padding: 8px 4px; font-size: clamp(1rem, 3.6vw, 1.35rem); line-height: 1.3; }
+    .st small { display: block; font-size: .55em; color: #8a5a2b; font-weight: 500; }
+    .st:not(:disabled):hover { background: #fff3c4; }
+    .st.ok { background: #2a9d8f; color: #fff; border-color: #1f776d; }
+    .st.ok small, .st.ng small { color: #fff; }
+    .st.ng { background: #c1121f; color: #fff; }
+    .st:disabled { opacity: 1; }
+    .st.visited::after { content: '★'; position: absolute; top: -8px; right: -6px; color: #e9c46a; font-size: 1rem; text-shadow: 0 0 2px #1d3557; }
+    .nokana .st small { visibility: hidden; }
+    @media (max-width: 560px) { .map { grid-template-columns: repeat(3, 1fr); gap: 8px; } .windows { grid-template-columns: 1fr; } .win + .win { display: none; } }
+
+    .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 8px; }
+    .opts button { background: #fffdf6; color: #1d3557; border: 3px solid #1d3557; font-size: 1.3rem; padding: 12px; }
+    .opts button:disabled { opacity: .6; }
+    .opts button.ok, .opts button.ng { opacity: 1; }
+    .opts button.ok { background: #2a9d8f; color: #fff; } .opts button.ng { background: #c1121f; color: #fff; }
+
+    .script { margin-top: 12px; background: #fffdf6; border-left: 6px solid #2a9d8f; border-radius: 10px; padding: 12px 14px; line-height: 2; }
+    .script .ja { font-size: 1.2rem; }
+    .script .vi { font-size: .95rem; color: #555; line-height: 1.5; margin-top: 4px; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .row label { font-size: .95rem; cursor: pointer; }
+    .next { font-size: 1.1rem; padding: 12px 26px; margin-left: auto; }
+    .next[hidden] { display: none; }
+    .warn { background: #fde2d4; border-radius: 10px; padding: 8px 12px; margin-top: 10px; font-size: .9rem; }
+    .warn[hidden] { display: none; }
+    a.home { color: #1d3557; font-size: .95rem; }
+
+    /* ---------- OVERLAY ---------- */
+    .over { position: fixed; inset: 0; background: rgba(20, 12, 8, .82); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 5; }
+    .over[hidden] { display: none; }
+    .box { background: #fdf6e3; border-radius: 18px; padding: 26px 22px; max-width: 480px; text-align: center; border: 4px solid #1d3557; max-height: 100%; overflow: auto; }
+    .box h2 { font-size: 2rem; color: #2a9d8f; }
+    .box p { margin: 10px 0; line-height: 1.6; }
+    .box ol { text-align: left; margin: 8px 0 8px 1.4em; line-height: 1.7; }
+    .box button { margin-top: 8px; font-size: 1.1rem; padding: 12px 26px; }
+  </style>
+</head>
+<body>
+  <div class="car" id="car">
+    <div class="top">
+      <div class="led" id="led"><span>山手線 内回り</span></div>
+      <div class="hud"><b id="lives">❤️❤️❤️</b><b id="round">0/10</b></div>
+    </div>
+    <div class="windows" id="windows">
+      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="platform"></div><div class="sign"></div></div>
+      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="platform"></div><div class="sign"></div></div>
+    </div>
+  </div>
+
+  <main>
+    <div class="ask">
+      <div class="q" id="q">うとうと…</div>
+      <button class="replay" id="replay" disabled>🔊 もう一度</button>
+    </div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <div id="area"><div class="map" id="map"></div></div>
+    <div class="script" id="script" hidden></div>
+    <div class="warn" id="warn" hidden>Trình duyệt này không có giọng đọc tiếng Nhật, nên thông báo sẽ hiện bằng chữ hiragana. Thử Chrome / Edge / Safari để nghe được tiếng nhé.</div>
+    <div class="row">
+      <label><input type="checkbox" id="kana" checked> ふりがな</label>
+      <a class="home" href="index.html">← ゲーム一覧</a>
+      <button class="next" id="next" hidden>次へ ▶</button>
+    </div>
+  </main>
+
+  <div class="over" id="start">
+    <div class="box">
+      <h2 class="brush"><ruby>駅<rt>えき</rt></ruby>のアナウンス</h2>
+      <p>Bạn ngồi tàu 山手線 và… ngủ gật mất! Mỗi lần giật mình tỉnh dậy, hãy <b>nghe thông báo</b> trên tàu rồi trả lời:</p>
+      <ol>
+        <li>Vòng 1–4: ga tiếp theo là ga nào? Bấm vào ga đó trên bản đồ.</li>
+        <li>Vòng 5–7: thêm câu hỏi <b>cửa ra bên nào</b> (左側 / 右側).</li>
+        <li>Vòng 8–10: thêm câu hỏi <b>đổi sang tuyến nào</b> (お乗り換え).</li>
+      </ol>
+      <p>Sai là ngồi quá ga (乗り過ごし), mất một ❤️. Đi hết 10 lượt là về đích!</p>
+      <p style="font-size:.9rem">Phím tắt: <b>R</b> nghe lại · <b>1–3</b> chọn đáp án · <b>Enter</b> sang lượt sau. Bỏ chọn ふりがな để khó hơn.</p>
+      <button id="go">出発！</button>
+    </div>
+  </div>
+
+  <div class="over" id="end" hidden>
+    <div class="box">
+      <h2 class="brush" id="endTitle"></h2>
+      <p id="stats"></p>
+      <button id="again">もう一回</button>
+    </div>
+  </div>
+
+<script>
+// Các ga theo thứ tự thật trên tuyến Yamanote (lược bớt); l = các tuyến đổi tàu: [kanji, cách đọc]
+const STATIONS = [
+  { k: '東京', r: 'とうきょう', l: [['中央線', 'ちゅうおうせん'], ['丸ノ内線', 'まるのうちせん']] },
+  { k: '神田', r: 'かんだ', l: [['銀座線', 'ぎんざせん']] },
+  { k: '秋葉原', r: 'あきはばら', l: [['日比谷線', 'ひびやせん'], ['総武線', 'そうぶせん']] },
+  { k: '上野', r: 'うえの', l: [['銀座線', 'ぎんざせん'], ['日比谷線', 'ひびやせん']] },
+  { k: '日暮里', r: 'にっぽり', l: [['京成線', 'けいせいせん']] },
+  { k: '池袋', r: 'いけぶくろ', l: [['丸ノ内線', 'まるのうちせん'], ['東武東上線', 'とうぶとうじょうせん']] },
+  { k: '高田馬場', r: 'たかだのばば', l: [['東西線', 'とうざいせん'], ['西武新宿線', 'せいぶしんじゅくせん']] },
+  { k: '新宿', r: 'しんじゅく', l: [['中央線', 'ちゅうおうせん'], ['小田急線', 'おだきゅうせん']] },
+  { k: '原宿', r: 'はらじゅく', l: [['千代田線', 'ちよだせん']] },
+  { k: '渋谷', r: 'しぶや', l: [['銀座線', 'ぎんざせん'], ['半蔵門線', 'はんぞうもんせん']] },
+  { k: '品川', r: 'しながわ', l: [['京急線', 'けいきゅうせん']] },
+  { k: '浜松町', r: 'はままつちょう', l: [['東京モノレール', 'とうきょうモノレール']] },
+];
+const ALL_LINES = [...new Map(STATIONS.flatMap(s => s.l).map(l => [l[0], l])).values()];
+const ROUNDS = 10;
+
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const ruby = (k, r) => `<ruby>${k}<rt>${r}</rt></ruby>`;
+
+let trip, idx, lives, stars, cur, step, busy;
+
+/* ================= LƯỢT CHƠI ================= */
+// mỗi lượt: ga + loại câu hỏi; loại tăng dần theo vòng
+function makeTrip() {
+  return shuffle(STATIONS).slice(0, ROUNDS).map((s, i) => {
+    const kind = i < 4 ? 'name' : i < 7 ? 'door' : 'line';
+    const t = { s, kind, soon: Math.random() < .5, rate: [.85, 1, 1.1][kind === 'name' ? 0 : kind === 'door' ? 1 : 2] };
+    if (kind === 'door') t.door = Math.random() < .5 ? '左' : '右';
+    if (kind === 'line') {
+      t.ans = s.l[Math.random() * s.l.length | 0];
+      const others = shuffle(ALL_LINES.filter(l => !s.l.some(x => x[0] === l[0]))).slice(0, 2);
+      t.opts = shuffle([t.ans, ...others]);
+    }
+    return t;
+  });
+}
+
+// câu thông báo: đọc bằng hiragana cho tên ga/tuyến (giọng máy hay đọc sai kanji tên riêng)
+function announcement(t) {
+  const { s } = t, head = t.soon ? ['まもなく', 'まもなく', 'Sắp đến'] : ['次は', ruby('次', 'つぎ') + 'は', 'Ga tiếp theo là'];
+  let say = `${head[0]}、${s.r}、${s.r}です。`;
+  let ja = `${head[1]}、${ruby(s.k, s.r)}、${ruby(s.k, s.r)}です。`;
+  let vi = `${head[2]} ${s.k} (${s.r}).`;
+  if (t.kind === 'door') {
+    const side = t.door === '左' ? ['ひだりがわ', 'bên trái'] : ['みぎがわ', 'bên phải'];
+    say += `お出口は、${t.door}側です。`;
+    ja += `お${ruby('出口', 'でぐち')}は、${ruby(t.door + '側', side[0])}です。`;
+    vi += ` Cửa ra ở ${side[1]}.`;
+  }
+  if (t.kind === 'line') {
+    say += `${s.l.map(l => l[1]).join('、')}は、お乗り換えです。`;
+    ja += `${s.l.map(l => ruby(...l)).join('、')}は、お${ruby('乗', 'の')}り${ruby('換', 'か')}えです。`;
+    vi += ` Có thể đổi sang ${s.l.map(l => l[0]).join(', ')}.`;
+  }
+  return { say, ja, vi };
+}
+
+function reset() {
+  trip = makeTrip(); idx = -1; lives = 3; stars = 0;
+  $('end').hidden = true;
+  buildMap(); hud();
+}
+
+function buildMap() {
+  $('area').innerHTML = '<div class="map" id="map"></div>';
+  $('map').innerHTML = STATIONS.map((s, i) => `<button class="st${trip.slice(0, idx).some(t => t.s === s) ? ' visited' : ''}" data-i="${i}" disabled>${s.k}<small>${s.r}</small></button>`).join('');
+}
+
+function hud() {
+  $('lives').textContent = '❤️'.repeat(lives) + '🤍'.repeat(3 - lives);
+  $('round').textContent = `${Math.max(idx + 1, 0)}/${ROUNDS}`;
+}
+
+function setLed(text, scroll) { $('led').innerHTML = `<span>${text}</span>`; $('led').classList.toggle('scroll', !!scroll); }
+function setMsg(text, cls = '') { $('msg').textContent = text; $('msg').className = 'msg ' + cls; }
+
+function next() {
+  idx++;
+  if (idx >= ROUNDS || lives <= 0) return finish();
+  cur = trip[idx]; cur.text = announcement(cur); step = 'name'; busy = true;
+  hud(); buildMap(); setMsg('');
+  $('script').hidden = true; $('next').hidden = true; $('replay').disabled = true;
+  $('q').innerHTML = 'うとうと… はっ！<small>Đang nghe thông báo…</small>';
+  setLed('次は ■■■ ', true);
+  $('windows').classList.remove('stop'); $('windows').classList.add('run'); $('car').classList.add('shake');
+  setTimeout(() => announce(() => {
+    busy = false; $('replay').disabled = false;
+    document.querySelectorAll('.st').forEach(b => b.disabled = false);
+    $('q').innerHTML = '次はどの駅？<small>Ga tiếp theo là ga nào? Bấm trên bản đồ.</small>';
+  }), 900);
+}
+
+/* ================= ÂM THANH ================= */
+let audio, jaVoice;
+function loadVoice() { jaVoice = window.speechSynthesis && speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith('ja')); }
+if (window.speechSynthesis) { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; }
+
+// tiếng chuông "pinpon" trước thông báo
+function chime() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    [[659, 0], [523, .35]].forEach(([f, d]) => {
+      const t = audio.currentTime + d, o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+      g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .9);
+      o.start(t); o.stop(t + .9);
+    });
+  } catch (e) {}
+}
+
+function announce(done) {
+  chime();
+  const fallback = () => { // không có giọng Nhật: hiện câu bằng hiragana thay cho tiếng
+    $('warn').hidden = false;
+    setMsg(`📢 ${cur.text.say}`);
+    setTimeout(done, 400);
+  };
+  setTimeout(() => {
+    if (!window.speechSynthesis || !jaVoice) return fallback();
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(cur.text.say);
+    u.lang = 'ja-JP'; u.voice = jaVoice; u.rate = cur.rate;
+    let called = false; const end = () => { if (!called) { called = true; done && done(); } };
+    u.onend = end; u.onerror = end;
+    setTimeout(end, 9000); // phòng khi onend không bắn (một số trình duyệt)
+    speechSynthesis.speak(u);
+  }, 1000);
+}
+
+/* ================= TRẢ LỜI ================= */
+function pickStation(btn) {
+  if (busy || step !== 'name') return;
+  const s = STATIONS[+btn.dataset.i], ok = s === cur.s;
+  document.querySelectorAll('.st').forEach(b => b.disabled = true);
+  btn.classList.add(ok ? 'ok' : 'ng');
+  if (!ok) { document.querySelector(`.st[data-i="${STATIONS.indexOf(cur.s)}"]`).classList.add('ok'); return miss(`Không phải ${s.k} rồi… là ${cur.s.k}!`); }
+  arrive();
+  if (cur.kind === 'name') return clear();
+  setMsg(`${cur.s.k}、正解！`, 'ok');
+  step = cur.kind;
+  if (cur.kind === 'door') {
+    $('q').innerHTML = 'お出口はどちら側？<small>Cửa ra bên nào?</small>';
+    showOpts([['左', '← 左側'], ['右', '右側 →']]);
+  } else {
+    $('q').innerHTML = '何線に乗り換えられる？<small>Ở ga này đổi được sang tuyến nào?</small>';
+    showOpts(cur.opts.map(l => [l[0], `${l[0]}<small style="display:block;font-size:.55em">${l[1]}</small>`]));
+  }
+}
+
+function showOpts(list) {
+  $('area').innerHTML = `<div class="opts">${list.map(([v, label]) => `<button data-v="${v}">${label}</button>`).join('')}</div>`;
+}
+
+function pickOpt(btn) {
+  if (busy || step === 'name' || step === 'done') return;
+  const right = cur.kind === 'door' ? cur.door : cur.ans[0], ok = btn.dataset.v === right;
+  document.querySelectorAll('.opts button').forEach(b => { b.disabled = true; if (b.dataset.v === right) b.classList.add('ok'); });
+  if (!ok) { btn.classList.add('ng'); return miss(cur.kind === 'door' ? `Cửa ra ở ${right}側 cơ!` : `Đổi tàu được sang ${right} cơ!`); }
+  clear();
+}
+
+// tàu dừng ở ga: hiện biển tên ga trên sân ga
+function arrive() {
+  $('windows').classList.remove('run'); $('windows').classList.add('stop'); $('car').classList.remove('shake');
+  document.querySelectorAll('.sign').forEach(e => e.innerHTML = `${cur.s.k}<small>${cur.s.r}</small>`);
+  setLed(`${cur.s.k}　${cur.s.r}`);
+}
+
+function clear() { stars++; setMsg('正解！ ⭐', 'ok'); done(); }
+function miss(text) {
+  lives--; hud(); arrive();
+  setMsg('乗り過ごした！ ' + text, 'ng');
+  done();
+}
+function done() {
+  step = 'done';
+  $('q').innerHTML = 'アナウンスの内容<small>Thông báo vừa rồi nói gì:</small>';
+  $('script').innerHTML = `<div class="ja">📢 ${cur.text.ja}</div><div class="vi">${cur.text.vi}</div>`;
+  $('script').hidden = false;
+  $('next').textContent = idx + 1 >= ROUNDS || lives <= 0 ? '結果を見る ▶' : '次へ ▶';
+  $('next').hidden = false; $('next').focus();
+}
+
+function finish() {
+  window.speechSynthesis && speechSynthesis.cancel();
+  $('windows').classList.remove('run'); $('car').classList.remove('shake');
+  const win = lives > 0;
+  $('endTitle').textContent = win ? '終点です！' : '乗り過ごし…';
+  $('stats').innerHTML = win
+    ? `Bạn đã về đích với <b>${stars}/${ROUNDS} ⭐</b> và còn ${'❤️'.repeat(lives)}.<br>${stars === ROUNDS ? 'Tai nghe tiếng Nhật xịn quá! 🎉' : 'Chơi lại và bỏ ふりがな để thử thách hơn nhé.'}`
+    : `Bạn ngủ quên quá 3 ga rồi! Đúng được <b>${stars} ⭐</b>.<br>Lần sau nhớ bấm 🔊 nghe lại nếu chưa chắc nhé.`;
+  $('end').hidden = false; $('again').focus();
+}
+
+/* ================= INPUT ================= */
+document.addEventListener('click', e => {
+  const st = e.target.closest('.st'), opt = e.target.closest('.opts button');
+  if (st) pickStation(st); else if (opt) pickOpt(opt);
+});
+document.addEventListener('keydown', e => {
+  if (!$('start').hidden || !$('end').hidden) return;
+  if (e.key === 'r' || e.key === 'R') { if (!$('replay').disabled) $('replay').click(); return; }
+  if (['1', '2', '3'].includes(e.key)) { const b = document.querySelectorAll('.opts button')[+e.key - 1]; if (b && !b.disabled) pickOpt(b); }
+});
+$('replay').onclick = () => { if (busy) return; busy = true; $('replay').disabled = true; announce(() => { busy = false; $('replay').disabled = false; }); };
+$('next').onclick = next;
+$('go').onclick = () => { $('start').hidden = true; next(); };
+$('again').onclick = () => { reset(); next(); };
+$('kana').onchange = e => document.body.classList.toggle('nokana', !e.target.checked);
+
+reset();
+</script>
+</body>
+</html>
