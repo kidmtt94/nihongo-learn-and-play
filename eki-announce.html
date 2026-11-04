@@ -50,7 +50,11 @@
       padding: 2px 14px; font-size: clamp(1rem, 4vw, 1.6rem); white-space: nowrap; display: none; text-align: center; line-height: 1.2; }
     .sign small { display: block; font-size: .5em; color: #555; }
     .stop .platform, .stop .sign { display: block; }
-    .stop .far, .stop .near { opacity: .5; }
+    .stop .far, .stop .near, .stop .pole { display: none; }
+    /* cảnh đặc trưng của từng ga, hiện sau sân ga khi tàu dừng */
+    .scene { position: absolute; left: 0; right: 0; bottom: 38%; display: none; justify-content: space-around; align-items: flex-end; font-size: clamp(1.8rem, 7vw, 3rem); line-height: 1; }
+    .stop .scene { display: flex; }
+    .sign { z-index: 1; }
     .car.shake { animation: rock .5s ease-in-out infinite alternate; }
     @keyframes rock { to { transform: translateY(1.5px); } }
 
@@ -75,6 +79,11 @@
     .st:disabled { opacity: 1; }
     .st.visited::after { content: '★'; position: absolute; top: -8px; right: -6px; color: #e9c46a; font-size: 1rem; text-shadow: 0 0 2px #1d3557; }
     .nokana .st small { visibility: hidden; }
+    .st.goal { background: #e9c46a; }
+    .st.goal::after { content: '🎯'; position: absolute; top: -10px; right: -6px; font-size: 1rem; }
+    /* thanh đếm ngược trước khi cửa đóng (level 2) */
+    .timer { height: 8px; margin-top: 10px; border-radius: 4px; background: #c1121f; transform-origin: left; animation: shrink linear forwards; }
+    @keyframes shrink { to { transform: scaleX(0); } }
     @media (max-width: 560px) { .map { grid-template-columns: repeat(3, 1fr); gap: 8px; } .windows { grid-template-columns: 1fr; } .win + .win { display: none; } }
 
     .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 8px; }
@@ -85,7 +94,6 @@
 
     .script { margin-top: 12px; background: #fffdf6; border-left: 6px solid #2a9d8f; border-radius: 10px; padding: 12px 14px; line-height: 2; }
     .script .ja { font-size: 1.2rem; }
-    .script .vi { font-size: .95rem; color: #555; line-height: 1.5; margin-top: 4px; }
     .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
     .row label { font-size: .95rem; cursor: pointer; }
     .next { font-size: 1.1rem; padding: 12px 26px; margin-left: auto; }
@@ -111,8 +119,8 @@
       <div class="hud"><b id="lives">❤️❤️❤️</b><b id="round">0/10</b></div>
     </div>
     <div class="windows" id="windows">
-      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="platform"></div><div class="sign"></div></div>
-      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="platform"></div><div class="sign"></div></div>
+      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="scene"></div><div class="platform"></div><div class="sign"></div></div>
+      <div class="win"><i class="far"></i><i class="near"></i><i class="ground"></i><span class="pole"></span><div class="scene"></div><div class="platform"></div><div class="sign"></div></div>
     </div>
   </div>
 
@@ -124,7 +132,7 @@
     <div class="msg" id="msg" role="status" aria-live="polite"></div>
     <div id="area"><div class="map" id="map"></div></div>
     <div class="script" id="script" hidden></div>
-    <div class="warn" id="warn" hidden>Trình duyệt này không có giọng đọc tiếng Nhật, nên thông báo sẽ hiện bằng chữ hiragana. Thử Chrome / Edge / Safari để nghe được tiếng nhé.</div>
+    <div class="warn" id="warn" hidden>このブラウザには<ruby>日本語<rt>にほんご</rt></ruby>の<ruby>音声<rt>おんせい</rt></ruby>がありません。アナウンスはひらがなで<ruby>表示<rt>ひょうじ</rt></ruby>します。Chrome・Edge・Safari なら<ruby>音<rt>おと</rt></ruby>で<ruby>聞<rt>き</rt></ruby>けます。</div>
     <div class="row">
       <label><input type="checkbox" id="kana" checked> ふりがな</label>
       <a class="home" href="index.html">← ゲーム一覧</a>
@@ -135,15 +143,19 @@
   <div class="over" id="start">
     <div class="box">
       <h2 class="brush"><ruby>駅<rt>えき</rt></ruby>のアナウンス</h2>
-      <p>Bạn ngồi tàu 山手線 và… ngủ gật mất! Mỗi lần giật mình tỉnh dậy, hãy <b>nghe thông báo</b> trên tàu rồi trả lời:</p>
+      <p><ruby>山手線<rt>やまのてせん</rt></ruby>で うとうと…<ruby>寝<rt>ね</rt></ruby>てしまった！<ruby>目<rt>め</rt></ruby>が<ruby>覚<rt>さ</rt></ruby>めたら、<ruby>車内<rt>しゃない</rt></ruby>の<b>アナウンスを<ruby>聞<rt>き</rt></ruby>いて</b><ruby>答<rt>こた</rt></ruby>えよう。</p>
+      <p style="text-align:left"><b>レベル1</b></p>
       <ol>
-        <li>Vòng 1–4: ga tiếp theo là ga nào? Bấm vào ga đó trên bản đồ.</li>
-        <li>Vòng 5–7: thêm câu hỏi <b>cửa ra bên nào</b> (左側 / 右側).</li>
-        <li>Vòng 8–10: thêm câu hỏi <b>đổi sang tuyến nào</b> (お乗り換え).</li>
+        <li>1〜4<ruby>駅目<rt>えきめ</rt></ruby>：<ruby>次<rt>つぎ</rt></ruby>の<ruby>駅<rt>えき</rt></ruby>はどこ？<ruby>地図<rt>ちず</rt></ruby>で<ruby>押<rt>お</rt></ruby>そう。</li>
+        <li>5〜7<ruby>駅目<rt>えきめ</rt></ruby>：<b>お<ruby>出口<rt>でぐち</rt></ruby>はどちら<ruby>側<rt>がわ</rt></ruby>？</b>（<ruby>左側<rt>ひだりがわ</rt></ruby>／<ruby>右側<rt>みぎがわ</rt></ruby>）</li>
+        <li>8〜10<ruby>駅目<rt>えきめ</rt></ruby>：<b><ruby>何線<rt>なにせん</rt></ruby>に<ruby>乗<rt>の</rt></ruby>り<ruby>換<rt>か</rt></ruby>えられる？</b></li>
+        <li>🔊 もう<ruby>一度<rt>いちど</rt></ruby><ruby>聞<rt>き</rt></ruby>くと❤️が1つ<ruby>減<rt>へ</rt></ruby>るよ。</li>
       </ol>
-      <p>Sai là ngồi quá ga (乗り過ごし), mất một ❤️. Đi hết 10 lượt là về đích!</p>
-      <p style="font-size:.9rem">Phím tắt: <b>R</b> nghe lại · <b>1–3</b> chọn đáp án · <b>Enter</b> sang lượt sau. Bỏ chọn ふりがな để khó hơn.</p>
-      <button id="go">出発！</button>
+      <p style="text-align:left"><b>レベル2</b>：<ruby>目的地<rt>もくてきち</rt></ruby>で<ruby>降<rt>お</rt></ruby>りよう！<ruby>駅<rt>えき</rt></ruby>の<ruby>名前<rt>なまえ</rt></ruby>は<ruby>見<rt>み</rt></ruby>えないよ。ドアが<ruby>閉<rt>し</rt></ruby>まる<ruby>前<rt>まえ</rt></ruby>に「<ruby>降<rt>お</rt></ruby>りる」か「<ruby>乗<rt>の</rt></ruby>ったまま」を<ruby>選<rt>えら</rt></ruby>ぼう。<ruby>途中<rt>とちゅう</rt></ruby>で<ruby>電車<rt>でんしゃ</rt></ruby>が<ruby>止<rt>と</rt></ruby>まったら、<ruby>理由<rt>りゆう</rt></ruby>を<ruby>聞<rt>き</rt></ruby>き<ruby>取<rt>と</rt></ruby>ろう。</p>
+      <p>まちがえると❤️が1つ<ruby>減<rt>へ</rt></ruby>るよ。</p>
+      <p style="font-size:.9rem">キー：<b>R</b> もう<ruby>一度<rt>いちど</rt></ruby> · <b>1〜3</b> <ruby>答<rt>こた</rt></ruby>えを<ruby>選<rt>えら</rt></ruby>ぶ · <b>Enter</b> <ruby>次<rt>つぎ</rt></ruby>へ。ふりがなを<ruby>消<rt>け</rt></ruby>すと むずかしくなるよ。</p>
+      <button data-lv="1">レベル1 出発！</button>
+      <button data-lv="2">レベル2 出発！</button>
     </div>
   </div>
 
@@ -152,27 +164,28 @@
       <h2 class="brush" id="endTitle"></h2>
       <p id="stats"></p>
       <button id="again">もう一回</button>
+      <button id="menu">レベルを選ぶ</button>
     </div>
   </div>
 
 <script>
-// Các ga theo thứ tự thật trên tuyến Yamanote (lược bớt); l = các tuyến đổi tàu: [kanji, cách đọc]
+// Các ga theo thứ tự thật trên tuyến Yamanote (lược bớt); l = các tuyến đổi tàu: [kanji, cách đọc]; v = cảnh đặc trưng; sky = màu trời
 const STATIONS = [
-  { k: '東京', r: 'とうきょう', l: [['中央線', 'ちゅうおうせん'], ['丸ノ内線', 'まるのうちせん']] },
-  { k: '神田', r: 'かんだ', l: [['銀座線', 'ぎんざせん']] },
-  { k: '秋葉原', r: 'あきはばら', l: [['日比谷線', 'ひびやせん'], ['総武線', 'そうぶせん']] },
-  { k: '上野', r: 'うえの', l: [['銀座線', 'ぎんざせん'], ['日比谷線', 'ひびやせん']] },
-  { k: '日暮里', r: 'にっぽり', l: [['京成線', 'けいせいせん']] },
-  { k: '池袋', r: 'いけぶくろ', l: [['丸ノ内線', 'まるのうちせん'], ['東武東上線', 'とうぶとうじょうせん']] },
-  { k: '高田馬場', r: 'たかだのばば', l: [['東西線', 'とうざいせん'], ['西武新宿線', 'せいぶしんじゅくせん']] },
-  { k: '新宿', r: 'しんじゅく', l: [['中央線', 'ちゅうおうせん'], ['小田急線', 'おだきゅうせん']] },
-  { k: '原宿', r: 'はらじゅく', l: [['千代田線', 'ちよだせん']] },
-  { k: '渋谷', r: 'しぶや', l: [['銀座線', 'ぎんざせん'], ['半蔵門線', 'はんぞうもんせん']] },
-  { k: '品川', r: 'しながわ', l: [['京急線', 'けいきゅうせん']] },
-  { k: '浜松町', r: 'はままつちょう', l: [['東京モノレール', 'とうきょうモノレール']] },
+  { k: '東京', r: 'とうきょう', v: '🏢🧱🚉🏢', sky: '#8ecae6', l: [['中央線', 'ちゅうおうせん'], ['丸ノ内線', 'まるのうちせん']] },
+  { k: '神田', r: 'かんだ', v: '📚🍛⛩️', sky: '#a8dadc', l: [['銀座線', 'ぎんざせん']] },
+  { k: '秋葉原', r: 'あきはばら', v: '🎮🤖💡📺', sky: '#c77dff', l: [['日比谷線', 'ひびやせん'], ['総武線', 'そうぶせん']] },
+  { k: '上野', r: 'うえの', v: '🌸🐼🏛️🌸', sky: '#ffc8dd', l: [['銀座線', 'ぎんざせん'], ['日比谷線', 'ひびやせん']] },
+  { k: '日暮里', r: 'にっぽり', v: '🐈🏯🍡', sky: '#ffd6a5', l: [['京成線', 'けいせいせん']] },
+  { k: '池袋', r: 'いけぶくろ', v: '🦉🏙️🐠', sky: '#90e0ef', l: [['丸ノ内線', 'まるのうちせん'], ['東武東上線', 'とうぶとうじょうせん']] },
+  { k: '高田馬場', r: 'たかだのばば', v: '🎓🍜🐴', sky: '#bde0fe', l: [['東西線', 'とうざいせん'], ['西武新宿線', 'せいぶしんじゅくせん']] },
+  { k: '新宿', r: 'しんじゅく', v: '🏙️🌃🏢🏙️', sky: '#3d348b', l: [['中央線', 'ちゅうおうせん'], ['小田急線', 'おだきゅうせん']] },
+  { k: '原宿', r: 'はらじゅく', v: '⛩️🌳🍭👗', sky: '#ffafcc', l: [['千代田線', 'ちよだせん']] },
+  { k: '渋谷', r: 'しぶや', v: '🐕🚦🏬', sky: '#f4a261', l: [['銀座線', 'ぎんざせん'], ['半蔵門線', 'はんぞうもんせん']] },
+  { k: '品川', r: 'しながわ', v: '🚄🐬🏢', sky: '#48cae4', l: [['京急線', 'けいきゅうせん']] },
+  { k: '浜松町', r: 'はままつちょう', v: '🗼🚝✈️', sky: '#a2d2ff', l: [['東京モノレール', 'とうきょうモノレール']] },
 ];
 const ALL_LINES = [...new Map(STATIONS.flatMap(s => s.l).map(l => [l[0], l])).values()];
-const ROUNDS = 10;
+let level = 1, rounds = 10; // level 1: 10 lượt; level 2: 4 nhiệm vụ
 
 const $ = id => document.getElementById(id);
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -183,7 +196,7 @@ let trip, idx, lives, stars, cur, step, busy;
 /* ================= LƯỢT CHƠI ================= */
 // mỗi lượt: ga + loại câu hỏi; loại tăng dần theo vòng
 function makeTrip() {
-  return shuffle(STATIONS).slice(0, ROUNDS).map((s, i) => {
+  return shuffle(STATIONS).slice(0, rounds).map((s, i) => {
     const kind = i < 4 ? 'name' : i < 7 ? 'door' : 'line';
     const t = { s, kind, soon: Math.random() < .5, rate: [.85, 1, 1.1][kind === 'name' ? 0 : kind === 'door' ? 1 : 2] };
     if (kind === 'door') t.door = Math.random() < .5 ? '左' : '右';
@@ -198,22 +211,19 @@ function makeTrip() {
 
 // câu thông báo: đọc bằng hiragana cho tên ga/tuyến (giọng máy hay đọc sai kanji tên riêng)
 function announcement(t) {
-  const { s } = t, head = t.soon ? ['まもなく', 'まもなく', 'Sắp đến'] : ['次は', ruby('次', 'つぎ') + 'は', 'Ga tiếp theo là'];
+  const { s } = t, head = t.soon ? ['まもなく', 'まもなく'] : ['次は', ruby('次', 'つぎ') + 'は'];
   let say = `${head[0]}、${s.r}、${s.r}です。`;
   let ja = `${head[1]}、${ruby(s.k, s.r)}、${ruby(s.k, s.r)}です。`;
-  let vi = `${head[2]} ${s.k} (${s.r}).`;
   if (t.kind === 'door') {
-    const side = t.door === '左' ? ['ひだりがわ', 'bên trái'] : ['みぎがわ', 'bên phải'];
+    const side = t.door === '左' ? 'ひだりがわ' : 'みぎがわ';
     say += `お出口は、${t.door}側です。`;
-    ja += `お${ruby('出口', 'でぐち')}は、${ruby(t.door + '側', side[0])}です。`;
-    vi += ` Cửa ra ở ${side[1]}.`;
+    ja += `お${ruby('出口', 'でぐち')}は、${ruby(t.door + '側', side)}です。`;
   }
   if (t.kind === 'line') {
     say += `${s.l.map(l => l[1]).join('、')}は、お乗り換えです。`;
     ja += `${s.l.map(l => ruby(...l)).join('、')}は、お${ruby('乗', 'の')}り${ruby('換', 'か')}えです。`;
-    vi += ` Có thể đổi sang ${s.l.map(l => l[0]).join(', ')}.`;
   }
-  return { say, ja, vi };
+  return { say, ja };
 }
 
 function reset() {
@@ -229,25 +239,33 @@ function buildMap() {
 
 function hud() {
   $('lives').textContent = '❤️'.repeat(lives) + '🤍'.repeat(3 - lives);
-  $('round').textContent = `${Math.max(idx + 1, 0)}/${ROUNDS}`;
+  $('round').textContent = `${Math.max(idx + 1, 0)}/${rounds}`;
 }
 
 function setLed(text, scroll) { $('led').innerHTML = `<span>${text}</span>`; $('led').classList.toggle('scroll', !!scroll); }
 function setMsg(text, cls = '') { $('msg').textContent = text; $('msg').className = 'msg ' + cls; }
 
+// tàu chạy giữa hai ga
+function run() {
+  setLed('次は ■■■ ', true);
+  $('windows').classList.remove('stop'); $('windows').classList.add('run');
+  document.querySelectorAll('.win').forEach(w => w.style.background = ''); $('car').classList.add('shake');
+}
+
 function next() {
+  if (level === 2) return nextMission();
   idx++;
-  if (idx >= ROUNDS || lives <= 0) return finish();
+  if (idx >= rounds || lives <= 0) return finish();
   cur = trip[idx]; cur.text = announcement(cur); step = 'name'; busy = true;
   hud(); buildMap(); setMsg('');
   $('script').hidden = true; $('next').hidden = true; $('replay').disabled = true;
-  $('q').innerHTML = 'うとうと… はっ！<small>Đang nghe thông báo…</small>';
-  setLed('次は ■■■ ', true);
-  $('windows').classList.remove('stop'); $('windows').classList.add('run'); $('car').classList.add('shake');
+  $('replay').innerHTML = '🔊 もう一度 <small>❤️-1</small>';
+  $('q').innerHTML = `うとうと… はっ！<small>アナウンスをよく${ruby('聞', 'き')}いて！</small>`;
+  run();
   setTimeout(() => announce(() => {
-    busy = false; $('replay').disabled = false;
+    busy = false; $('replay').disabled = !canReplay();
     document.querySelectorAll('.st').forEach(b => b.disabled = false);
-    $('q').innerHTML = '次はどの駅？<small>Ga tiếp theo là ga nào? Bấm trên bản đồ.</small>';
+    $('q').innerHTML = `次はどの駅？<small>${ruby('地図', 'ちず')}で${ruby('駅', 'えき')}を${ruby('押', 'お')}してね。</small>`;
   }), 900);
 }
 
@@ -269,23 +287,24 @@ function chime() {
   } catch (e) {}
 }
 
+function speak(text, rate, done) {
+  if (!window.speechSynthesis || !jaVoice) { // không có giọng Nhật: hiện câu bằng hiragana thay cho tiếng
+    $('warn').hidden = false;
+    setMsg(`📢 ${text}`);
+    return setTimeout(done, 400);
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP'; u.voice = jaVoice; u.rate = rate;
+  let called = false; const end = () => { if (!called) { called = true; done && done(); } };
+  u.onend = end; u.onerror = end;
+  setTimeout(end, 12000); // phòng khi onend không bắn (một số trình duyệt)
+  speechSynthesis.speak(u);
+}
+
 function announce(done) {
   chime();
-  const fallback = () => { // không có giọng Nhật: hiện câu bằng hiragana thay cho tiếng
-    $('warn').hidden = false;
-    setMsg(`📢 ${cur.text.say}`);
-    setTimeout(done, 400);
-  };
-  setTimeout(() => {
-    if (!window.speechSynthesis || !jaVoice) return fallback();
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(cur.text.say);
-    u.lang = 'ja-JP'; u.voice = jaVoice; u.rate = cur.rate;
-    let called = false; const end = () => { if (!called) { called = true; done && done(); } };
-    u.onend = end; u.onerror = end;
-    setTimeout(end, 9000); // phòng khi onend không bắn (một số trình duyệt)
-    speechSynthesis.speak(u);
-  }, 1000);
+  setTimeout(() => speak(cur.text.say, cur.rate, done), 1000);
 }
 
 /* ================= TRẢ LỜI ================= */
@@ -294,16 +313,16 @@ function pickStation(btn) {
   const s = STATIONS[+btn.dataset.i], ok = s === cur.s;
   document.querySelectorAll('.st').forEach(b => b.disabled = true);
   btn.classList.add(ok ? 'ok' : 'ng');
-  if (!ok) { document.querySelector(`.st[data-i="${STATIONS.indexOf(cur.s)}"]`).classList.add('ok'); return miss(`Không phải ${s.k} rồi… là ${cur.s.k}!`); }
+  if (!ok) { document.querySelector(`.st[data-i="${STATIONS.indexOf(cur.s)}"]`).classList.add('ok'); return miss(`${s.k}じゃなくて、${cur.s.k}でした！`); }
   arrive();
   if (cur.kind === 'name') return clear();
   setMsg(`${cur.s.k}、正解！`, 'ok');
   step = cur.kind;
   if (cur.kind === 'door') {
-    $('q').innerHTML = 'お出口はどちら側？<small>Cửa ra bên nào?</small>';
+    $('q').innerHTML = `お出口はどちら側？<small>${ruby('左側', 'ひだりがわ')}？${ruby('右側', 'みぎがわ')}？</small>`;
     showOpts([['左', '← 左側'], ['右', '右側 →']]);
   } else {
-    $('q').innerHTML = '何線に乗り換えられる？<small>Ở ga này đổi được sang tuyến nào?</small>';
+    $('q').innerHTML = `何線に乗り換えられる？<small>${ruby('一', 'ひと')}つ${ruby('選', 'えら')}んでね。</small>`;
     showOpts(cur.opts.map(l => [l[0], `${l[0]}<small style="display:block;font-size:.55em">${l[1]}</small>`]));
   }
 }
@@ -313,10 +332,13 @@ function showOpts(list) {
 }
 
 function pickOpt(btn) {
-  if (busy || step === 'name' || step === 'done') return;
+  if (busy) return;
+  if (step === 'exit') return decide(btn.dataset.v, btn);
+  if (step === 'why') return answerWhy(btn);
+  if (step !== 'door' && step !== 'line') return;
   const right = cur.kind === 'door' ? cur.door : cur.ans[0], ok = btn.dataset.v === right;
   document.querySelectorAll('.opts button').forEach(b => { b.disabled = true; if (b.dataset.v === right) b.classList.add('ok'); });
-  if (!ok) { btn.classList.add('ng'); return miss(cur.kind === 'door' ? `Cửa ra ở ${right}側 cơ!` : `Đổi tàu được sang ${right} cơ!`); }
+  if (!ok) { btn.classList.add('ng'); return miss(cur.kind === 'door' ? `お出口は${right}側でした！` : `${right}に乗り換えでした！`); }
   clear();
 }
 
@@ -324,21 +346,25 @@ function pickOpt(btn) {
 function arrive() {
   $('windows').classList.remove('run'); $('windows').classList.add('stop'); $('car').classList.remove('shake');
   document.querySelectorAll('.sign').forEach(e => e.innerHTML = `${cur.s.k}<small>${cur.s.r}</small>`);
+  // cửa sổ thứ 2 đảo thứ tự cảnh cho đỡ giống hệt nhau
+  document.querySelectorAll('.scene').forEach((e, i) => { const v = [...cur.s.v.matchAll(/\p{Extended_Pictographic}\uFE0F?/gu)].map(m => m[0]); e.textContent = (i ? v.reverse() : v).join(''); });
+  document.querySelectorAll('.win').forEach(w => w.style.background = `linear-gradient(${cur.s.sky}, #fdf6e3)`);
   setLed(`${cur.s.k}　${cur.s.r}`);
 }
 
 function clear() { stars++; setMsg('正解！ ⭐', 'ok'); done(); }
-function miss(text) {
+function miss(text, head = '乗り過ごした！ ') {
   lives--; hud(); arrive();
-  setMsg('乗り過ごした！ ' + text, 'ng');
+  setMsg(head + text, 'ng');
   done();
 }
 function done() {
   step = 'done';
-  $('q').innerHTML = 'アナウンスの内容<small>Thông báo vừa rồi nói gì:</small>';
-  $('script').innerHTML = `<div class="ja">📢 ${cur.text.ja}</div><div class="vi">${cur.text.vi}</div>`;
+  $('replay').textContent = '🔊 もう一度'; $('replay').disabled = false; // nghe lại để ôn: miễn phí
+  $('q').innerHTML = `アナウンスの${ruby('内容', 'ないよう')}<small>もう${ruby('一度', 'いちど')}${ruby('読', 'よ')}んでみよう。</small>`;
+  $('script').innerHTML = `<div class="ja">📢 ${cur.text.ja}</div>`;
   $('script').hidden = false;
-  $('next').textContent = idx + 1 >= ROUNDS || lives <= 0 ? '結果を見る ▶' : '次へ ▶';
+  $('next').textContent = idx + 1 >= rounds || lives <= 0 ? '結果を見る ▶' : '次へ ▶';
   $('next').hidden = false; $('next').focus();
 }
 
@@ -348,12 +374,107 @@ function finish() {
   const win = lives > 0;
   $('endTitle').textContent = win ? '終点です！' : '乗り過ごし…';
   $('stats').innerHTML = win
-    ? `Bạn đã về đích với <b>${stars}/${ROUNDS} ⭐</b> và còn ${'❤️'.repeat(lives)}.<br>${stars === ROUNDS ? 'Tai nghe tiếng Nhật xịn quá! 🎉' : 'Chơi lại và bỏ ふりがな để thử thách hơn nhé.'}`
-    : `Bạn ngủ quên quá 3 ga rồi! Đúng được <b>${stars} ⭐</b>.<br>Lần sau nhớ bấm 🔊 nghe lại nếu chưa chắc nhé.`;
+    ? `<b>${stars}/${rounds} ⭐</b>、${'❤️'.repeat(lives)} でゴール！<br>${stars === rounds ? `${ruby('完璧', 'かんぺき')}！${ruby('耳', 'みみ')}がいいね！🎉` : `ふりがなを${ruby('消', 'け')}して、もう${ruby('一回', 'いっかい')}やってみよう。`}`
+    : `3${ruby('回', 'かい')}も${ruby('乗', 'の')}り${ruby('過', 'す')}ごしちゃった！ <b>${stars} ⭐</b><br>${level === 1
+      ? `🔊は❤️を${ruby('使', 'つか')}うよ。${ruby('一回', 'いっかい')}でしっかり${ruby('聞', 'き')}き${ruby('取', 'と')}ろう！`
+      : `わからない${ruby('時', 'とき')}は 🔊 でもう${ruby('一度', 'いちど')}${ruby('聞', 'き')}いてみよう。`}`;
   $('end').hidden = false; $('again').focus();
 }
 
+/* ================= LEVEL 2: xuống đúng ga + sự cố ================= */
+// lý do tàu dừng giữa đường hay gặp trên tàu JR: [kanji, cách đọc]
+const REASONS = [
+  ['信号確認', 'しんごうかくにん'], ['車両点検', 'しゃりょうてんけん'], ['線路内の安全確認', 'せんろないのあんぜんかくにん'],
+  ['急病のお客様の救護', 'きゅうびょうのおきゃくさまのきゅうご'], ['強風', 'きょうふう'], ['前の電車との間隔調整', 'まえのでんしゃとのかんかくちょうせい'],
+];
+const OPEN_SEC = 6; // cửa mở bao nhiêu giây thì đóng
+let mission;
+
+function nextMission() {
+  idx++;
+  if (idx >= rounds || lives <= 0) return finish();
+  const from = Math.random() * STATIONS.length | 0, hops = 2 + (Math.random() * 3 | 0);
+  // incAt: sự cố xảy ra trước ga thứ mấy (-1 = không có)
+  mission = { pos: from, hop: 0, goal: STATIONS[(from + hops) % STATIONS.length], incAt: Math.random() < .6 ? Math.random() * hops | 0 : -1 };
+  hud(); setMsg('');
+  ride();
+}
+
+function ride() {
+  const g = mission.goal;
+  busy = true; step = 'ride'; setMsg('');
+  $('script').hidden = true; $('next').hidden = true; $('replay').disabled = true;
+  $('area').innerHTML = `<div class="map">${STATIONS.map(s => `<button class="st${s === g ? ' goal' : ''}" disabled>${s.k}<small>${s.r}</small></button>`).join('')}</div>`;
+  $('q').innerHTML = `${ruby('目的地', 'もくてきち')}：${ruby(g.k, g.r)}<small>アナウンスをよく${ruby('聞', 'き')}いて！</small>`;
+  run();
+  if (mission.hop === mission.incAt) { mission.incAt = -1; return setTimeout(incident, 2500); }
+  const s = STATIONS[(mission.pos + 1) % STATIONS.length];
+  cur = { s, rate: 1.1, text: announcement({ s, soon: true, kind: 'door', door: Math.random() < .5 ? '左' : '右' }) };
+  setTimeout(() => announce(openDoors), 1500);
+}
+
+// tàu dừng ở ga nhưng che tên ga: phải nghe mới biết
+function openDoors() {
+  $('windows').classList.remove('run'); $('windows').classList.add('stop'); $('car').classList.remove('shake');
+  document.querySelectorAll('.sign').forEach(e => e.textContent = '？？？');
+  document.querySelectorAll('.scene').forEach(e => e.textContent = '');
+  setLed('ドアが開きます');
+  busy = false; step = 'exit'; $('replay').disabled = false;
+  $('q').innerHTML = `${ruby(mission.goal.k, mission.goal.r)}で${ruby('降', 'お')}りる？<small>ドアが${ruby('閉', 'し')}まる${ruby('前', 'まえ')}に${ruby('選', 'えら')}んでね！</small>`;
+  showOpts([['off', `🚪 ${ruby('降', 'お')}りる`], ['stay', `💺 ${ruby('乗', 'の')}ったまま`]]);
+  $('area').insertAdjacentHTML('beforeend', `<div class="timer" style="animation-duration:${OPEN_SEC}s"></div>`);
+  mission.timer = setTimeout(() => {
+    step = 'closing'; $('replay').disabled = true;
+    document.querySelectorAll('.opts button').forEach(b => b.disabled = true);
+    setLed('ドアが閉まります');
+    speak('ドアがしまります。ごちゅういください。', 1.1, () => decide('stay'));
+  }, OPEN_SEC * 1000);
+}
+
+function decide(v, btn) {
+  clearTimeout(mission.timer);
+  const here = cur.s, atGoal = here === mission.goal;
+  document.querySelectorAll('.opts button').forEach(b => b.disabled = true);
+  btn && btn.classList.add((v === 'off') === atGoal ? 'ok' : 'ng');
+  mission.pos = (mission.pos + 1) % STATIONS.length; mission.hop++;
+  if (v === 'off' && atGoal) { arrive(); return clear(); }
+  if (v === 'off') return miss(`ここは${here.k}。${mission.goal.k}はまだ先でした。`, '降りまちがえた！ ');
+  if (atGoal) return miss(`ここが${here.k}でした！`);
+  step = 'ride'; busy = true; arrive();
+  setMsg(`${here.k}… まだまだ。`);
+  setTimeout(ride, 1800);
+}
+
+// tàu dừng giữa đường: nghe lý do
+function incident() {
+  const ans = REASONS[Math.random() * REASONS.length | 0];
+  cur = { rate: 1, ans, opts: shuffle([ans, ...shuffle(REASONS.filter(r => r !== ans)).slice(0, 2)]), text: {
+    say: `おいそぎのところ、ごめいわくをおかけしております。ただいま、${ans[1]}のため、ていしゃしております。`,
+    ja: `お${ruby('急', 'いそ')}ぎのところ、ご${ruby('迷惑', 'めいわく')}をおかけしております。ただいま、${ruby(...ans)}のため、${ruby('停車', 'ていしゃ')}しております。`,
+  } };
+  $('windows').classList.remove('run'); $('car').classList.remove('shake');
+  setLed('停車中'); setMsg('…？');
+  announce(() => {
+    busy = false; step = 'why'; $('replay').disabled = false; setMsg('');
+    $('q').innerHTML = `どうして${ruby('止', 'と')}まった？<small>${ruby('理由', 'りゆう')}を${ruby('選', 'えら')}んでね。</small>`;
+    showOpts(cur.opts.map(r => [r[0], ruby(...r)]));
+  });
+}
+
+function answerWhy(btn) {
+  const ok = btn.dataset.v === cur.ans[0];
+  step = 'done';
+  document.querySelectorAll('.opts button').forEach(b => { b.disabled = true; if (b.dataset.v === cur.ans[0]) b.classList.add('ok'); });
+  if (ok) setMsg('正解！', 'ok');
+  else { btn.classList.add('ng'); lives--; hud(); setMsg(`${cur.ans[0]}のためでした！`, 'ng'); }
+  $('script').innerHTML = `<div class="ja">📢 ${cur.text.ja}</div>`; $('script').hidden = false;
+  $('next').textContent = lives <= 0 ? '結果を見る ▶' : '発車 ▶';
+  $('next').hidden = false; $('next').focus();
+  after = () => { after = next; lives <= 0 ? finish() : ride(); };
+}
+
 /* ================= INPUT ================= */
+let after = next; // nút "次へ" làm gì tiếp
 document.addEventListener('click', e => {
   const st = e.target.closest('.st'), opt = e.target.closest('.opts button');
   if (st) pickStation(st); else if (opt) pickOpt(opt);
@@ -363,10 +484,23 @@ document.addEventListener('keydown', e => {
   if (e.key === 'r' || e.key === 'R') { if (!$('replay').disabled) $('replay').click(); return; }
   if (['1', '2', '3'].includes(e.key)) { const b = document.querySelectorAll('.opts button')[+e.key - 1]; if (b && !b.disabled) pickOpt(b); }
 });
-$('replay').onclick = () => { if (busy) return; busy = true; $('replay').disabled = true; announce(() => { busy = false; $('replay').disabled = false; }); };
-$('next').onclick = next;
-$('go').onclick = () => { $('start').hidden = true; next(); };
+// nghe lại không khoá nút trả lời (level 2 vẫn đếm giờ); chỉ bật lại nút nếu vẫn còn ở bước đó
+// level 1: nghe lại khi chưa trả lời xong thì mất 1 tim
+const replayCost = () => level === 1 && step !== 'done';
+const canReplay = () => !replayCost() || lives > 1; // không cho tiêu tim cuối cùng
+$('replay').onclick = () => {
+  if (busy || !canReplay()) return;
+  if (replayCost()) { lives--; hud(); }
+  const s0 = step; $('replay').disabled = true;
+  announce(() => { if (step === s0) $('replay').disabled = !canReplay(); });
+};
+$('next').onclick = () => after();
+document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => {
+  level = +b.dataset.lv; rounds = level === 1 ? 10 : 4;
+  $('start').hidden = true; reset(); next();
+});
 $('again').onclick = () => { reset(); next(); };
+$('menu').onclick = () => { $('end').hidden = true; $('start').hidden = false; };
 $('kana').onchange = e => document.body.classList.toggle('nokana', !e.target.checked);
 
 reset();
