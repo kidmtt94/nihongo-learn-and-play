@@ -30,7 +30,7 @@
     .hud { display: flex; justify-content: space-between; margin: 12px 0 8px; font-weight: 700; }
     .hud b { background: #fffdf6; border-radius: 99px; padding: 2px 12px; }
 
-    .pic { border: 6px solid #5a3e2b; border-radius: 10px; background: #fffdf6; overflow: hidden; box-shadow: 0 6px 0 #c9b28a; }
+    .pic { border: 6px solid #5a3e2b; border-radius: 10px; background: #eedfbd; overflow: hidden; box-shadow: 0 6px 0 #c9b28a; }
     .pic svg { display: block; width: 100%; height: auto; }
     .hints { list-style: none; margin-top: 12px; display: grid; gap: 6px; }
     .hints li { background: #fffdf6; border-left: 6px solid #e9c46a; border-radius: 8px; padding: 6px 12px; line-height: 2; font-size: 1.05rem; }
@@ -100,29 +100,49 @@
   </div>
 
 <script>
+// phong cách 絵巻物: màu khoáng, nền giấy washi, nét mực run (bộ lọc SVG)
+const C = { sumi: '#2b2420', shu: '#b5452f', rokusho: '#4e8a6e', gunjo: '#2f4a7a', odo: '#c99a4b', gold: '#d6ae52', paper: '#eedfbd', hada: '#f1dcc0', kuri: '#7a5a3a', tsuchi: '#b0683c', gofun: '#f6efe0' };
+const BG = `<defs>
+  <filter id="paper" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="3" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 .45  0 0 0 0 .33  0 0 0 0 .18  0 0 0 .22 0" result="grain"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".012 .08" numOctaves="2" seed="8" result="f"/>
+    <feColorMatrix in="f" type="matrix" values="0 0 0 0 .55  0 0 0 0 .42  0 0 0 0 .22  0 0 0 .35 -.05" result="fiber"/>
+    <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="fiber"/><feMergeNode in="grain"/></feMerge>
+  </filter>
+  <filter id="ink"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter>
+  <filter id="wash"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="3" seed="2" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="5" result="d"/><feGaussianBlur in="d" stdDeviation=".6"/></filter>
+</defs><rect width="320" height="200" fill="${C.paper}" filter="url(#paper)"/>`;
+// nhóm có viền mực
+const INK = `filter="url(#ink)" stroke="${C.sumi}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"`;
+// mây vàng すやり霞 (2 tầng)
+const kasumi = (x, y, w) => `<g fill="${C.gold}" stroke="${C.sumi}" stroke-width=".8" filter="url(#ink)" opacity=".92"><rect x="${x}" y="${y}" width="${w}" height="14" rx="7"/><rect x="${x + w * .25}" y="${y + 10}" width="${w * .6}" height="12" rx="6"/></g>`;
+// tay/chân vẽ bằng nét dày: viền mực bên dưới, màu bên trên
+const limb = (d, color, w = 8) => `<path d="${d}" stroke="${C.sumi}" stroke-width="${w + 3}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
 const r = (k, y) => `<ruby>${k}<rt>${y}</rt></ruby>`;
 // nhãn tên đồ vật trên tranh (cho tranh khó đoán): x = giữa nhãn, y = mép trên; kana = furigana nhỏ phía trên
 const tag = ([x, y, k, kana]) => {
   const w = Math.max(k.length * 14, (kana || '').length * 8) + 12, h = kana ? 30 : 22;
-  return `<g font-family="'Zen Maru Gothic', sans-serif" font-weight="700" text-anchor="middle"><rect x="${x - w / 2}" y="${y}" width="${w}" height="${h}" rx="6" fill="#fffdf6" stroke="#1d3557" stroke-width="1.5" opacity=".95"/>`
-    + (kana ? `<text x="${x}" y="${y + 10}" font-size="8" fill="#8a5a2b">${kana}</text>` : '')
-    + `<text x="${x}" y="${y + h - 6}" font-size="14" fill="#1d3557">${k}</text></g>`;
+  return `<g font-family="'Zen Maru Gothic', sans-serif" font-weight="700" text-anchor="middle"><rect x="${x - w / 2}" y="${y}" width="${w}" height="${h}" rx="4" fill="#fbf3dc" stroke="${C.sumi}" stroke-width="1.5" opacity=".95"/>`
+    + (kana ? `<text x="${x}" y="${y + 10}" font-size="8" fill="${C.shu}">${kana}</text>` : '')
+    + `<text x="${x}" y="${y + h - 6}" font-size="14" fill="${C.sumi}">${k}</text></g>`;
 };
 // quạt 檜扇 xoè nửa vòng (cho tranh 平安): tâm (cx, cy), giấy từ bán kính r1 đến r2, có dây tua hai đầu
 function hiogi(cx, cy, r1, r2) {
   const pt = (a, R) => `${(cx + R * Math.cos(a * Math.PI / 180)).toFixed(1)} ${(cy - R * Math.sin(a * Math.PI / 180)).toFixed(1)}`;
   let out = '';
   for (let a = 160; a > 20; a -= 10) // các nếp quạt sáng/tối xen kẽ
-    out += `<path d="M${pt(a, r1)} L${pt(a, r2)} L${pt(a - 10, r2)} L${pt(a - 10, r1)}Z" fill="${a % 20 ? '#ead29a' : '#f6e6bd'}" stroke="#b8945a" stroke-width=".8"/>`;
-  out += `<path d="M${cx} ${cy} L${pt(160, r1)} A${r1} ${r1} 0 0 1 ${pt(20, r1)}Z" fill="#6b4423"/>`;
-  for (let a = 160; a >= 20; a -= 10) out += `<path d="M${pt(a, 6)} L${pt(a, r1)}" stroke="#d9b77a" stroke-width="2"/>`;
-  out += `<g fill="#e07a8a" opacity=".8"><circle cx="${cx - 34}" cy="${cy - 52}" r="5"/><circle cx="${cx - 22}" cy="${cy - 62}" r="4"/><circle cx="${cx + 28}" cy="${cy - 56}" r="5"/><circle cx="${cx + 40}" cy="${cy - 44}" r="3.5"/></g>`;
-  out += `<path d="M${cx - 50} ${cy - 34} Q${cx - 20} ${cy - 50} ${cx + 8} ${cy - 40} Q${cx + 30} ${cy - 32} ${cx + 52} ${cy - 40}" stroke="#7aa874" stroke-width="3" fill="none" opacity=".8"/>`;
+    out += `<path d="M${pt(a, r1)} L${pt(a, r2)} L${pt(a - 10, r2)} L${pt(a - 10, r1)}Z" fill="${a % 20 ? '#e6cf96' : '#f3e4bb'}" stroke="#9c7a48" stroke-width=".8"/>`;
+  out += `<path d="M${cx} ${cy} L${pt(160, r1)} A${r1} ${r1} 0 0 1 ${pt(20, r1)}Z" fill="#5e3c22"/>`;
+  for (let a = 160; a >= 20; a -= 10) out += `<path d="M${pt(a, 6)} L${pt(a, r1)}" stroke="#d1ad70" stroke-width="2"/>`;
+  out += `<g fill="${C.shu}" opacity=".75"><circle cx="${cx - 34}" cy="${cy - 52}" r="5"/><circle cx="${cx - 22}" cy="${cy - 62}" r="4"/><circle cx="${cx + 28}" cy="${cy - 56}" r="5"/><circle cx="${cx + 40}" cy="${cy - 44}" r="3.5"/></g>`;
+  out += `<path d="M${cx - 50} ${cy - 34} Q${cx - 20} ${cy - 50} ${cx + 8} ${cy - 40} Q${cx + 30} ${cy - 32} ${cx + 52} ${cy - 40}" stroke="${C.rokusho}" stroke-width="3" fill="none" opacity=".85"/>`;
+  out += `<path d="M${pt(160, r2)} A${r2} ${r2} 0 0 1 ${pt(20, r2)}" stroke="${C.sumi}" stroke-width="1.4" fill="none"/>`;
   const [lx, ly] = pt(160, r2).split(' ').map(Number), [rx, ry] = pt(20, r2).split(' ').map(Number);
-  out += `<path d="M${lx} ${ly} q-8 20 0 36 q6 12 -2 26 M${lx} ${ly} q-2 22 8 36" stroke="#e76f51" stroke-width="3" fill="none"/>`
-    + `<path d="M${rx} ${ry} q8 20 0 36 q-6 12 2 26 M${rx} ${ry} q2 22 -8 36" stroke="#2a9d8f" stroke-width="3" fill="none"/>`
-    + `<circle cx="${cx}" cy="${cy}" r="5" fill="#8a5a2b"/>`;
-  return out;
+  out += `<path d="M${lx} ${ly} q-8 20 0 36 q6 12 -2 26 M${lx} ${ly} q-2 22 8 36" stroke="${C.shu}" stroke-width="3" fill="none"/>`
+    + `<path d="M${rx} ${ry} q8 20 0 36 q-6 12 2 26 M${rx} ${ry} q2 22 -8 36" stroke="${C.rokusho}" stroke-width="3" fill="none"/>`
+    + `<circle cx="${cx}" cy="${cy}" r="5" fill="${C.kuri}"/>`;
+  return `<g filter="url(#ink)">${out}</g>`;
 }
 
 // Các thời kỳ theo đúng thứ tự; svg = hint 1 (tranh tự vẽ, viewBox 320x200), h2/h3 = hint chữ, y = năm bắt đầu
@@ -131,139 +151,187 @@ const ERAS = [
     tags: [[68, 26, '竪穴住居', 'たてあなじゅうきょ'], [174, 160, '土器', 'どき'], [260, 160, '土偶', 'どぐう']],
     h2: `${r('縄', 'なわ')}の${r('模様', 'もよう')}の${r('土器', 'どき')}を${r('作', 'つく')}り、${r('狩', 'か')}りや${r('魚', 'さかな')}とりで${r('暮', 'く')}らした。`,
     h3: `${r('土偶', 'どぐう')}・${r('竪穴住居', 'たてあなじゅうきょ')}・${r('三内丸山遺跡', 'さんないまるやまいせき')}`,
-    svg: `<rect width="320" height="200" fill="#d7e8c8"/><rect y="150" width="320" height="50" fill="#9c7b4a"/>
-      <path d="M10 152 L68 72 L126 152Z" fill="#b8925a"/><path d="M30 152 L68 98 M48 152 L68 110 M88 152 L68 110 M106 152 L68 98" stroke="#8a6a38" stroke-width="3"/>
-      <path d="M68 72 L60 58 M68 72 L76 58" stroke="#8a6a38" stroke-width="4"/><path d="M56 152 v-26 q12 -10 24 0 v26Z" fill="#3b2a14"/>
-      <path d="M150 152 Q140 118 152 100 L196 100 Q208 118 198 152Z" fill="#b5651d"/>
-      <path d="M150 102 q-12 -20 4 -32 q4 14 12 6 q-2 -16 12 -18 q8 12 14 0 q14 8 6 26 q14 0 6 18Z" fill="#b5651d"/>
-      <path d="M152 112 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6 M150 126 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 M152 140 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6" stroke="#7a3e0e" stroke-width="2.5" fill="none"/>
-      <path d="M240 152 L248 122 Q230 112 236 100 L284 100 Q290 112 272 122 L280 152Z" fill="#c08a55"/>
-      <ellipse cx="260" cy="84" rx="26" ry="18" fill="#c08a55"/>
-      <ellipse cx="249" cy="85" rx="10" ry="8" fill="#e6c9a0"/><ellipse cx="271" cy="85" rx="10" ry="8" fill="#e6c9a0"/>
-      <path d="M241 85 h16 M263 85 h16" stroke="#5a3a1a" stroke-width="2.5"/><path d="M248 132 h24 M246 142 h28" stroke="#8a5a2b" stroke-width="2"/>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><path d="M0 128 Q60 108 120 124 T240 116 T320 122 V200 H0Z" fill="${C.rokusho}" opacity=".45"/><rect y="150" width="320" height="50" fill="${C.kuri}" opacity=".55"/></g>
+      ${kasumi(196, 26, 130)}
+      <g ${INK}>
+        <path d="M10 152 L68 72 L126 152Z" fill="${C.odo}"/><path d="M30 152 L68 98 M48 152 L68 110 M88 152 L68 110 M106 152 L68 98" stroke="#7a5a2a" stroke-width="2" fill="none"/>
+        <path d="M68 72 L60 58 M68 72 L76 58" stroke-width="3" fill="none"/><path d="M56 152 v-26 q12 -10 24 0 v26Z" fill="${C.sumi}"/>
+        <path d="M150 152 Q140 118 152 100 L196 100 Q208 118 198 152Z" fill="${C.tsuchi}"/>
+        <path d="M150 102 q-12 -20 4 -32 q4 14 12 6 q-2 -16 12 -18 q8 12 14 0 q14 8 6 26 q14 0 6 18Z" fill="${C.tsuchi}"/>
+        <path d="M152 112 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6 M150 126 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 M152 140 l6 6 l6 -6 l6 6 l6 -6 l6 6 l6 -6 l6 6" stroke="#5e2a0c" stroke-width="2" fill="none"/>
+        <path d="M240 152 L248 122 Q230 112 236 100 L284 100 Q290 112 272 122 L280 152Z" fill="#a8774a"/>
+        <ellipse cx="260" cy="84" rx="26" ry="18" fill="#a8774a"/>
+        <ellipse cx="249" cy="85" rx="10" ry="8" fill="#e6c9a0"/><ellipse cx="271" cy="85" rx="10" ry="8" fill="#e6c9a0"/>
+        <path d="M241 85 h16 M263 85 h16" stroke-width="2.5" fill="none"/><path d="M248 132 h24 M246 142 h28" stroke="#5e3a1a" stroke-width="2" fill="none"/>
+      </g>` },
   { k: '弥生', y: 'やよい', from: '紀元前4世紀ごろ〜',
     tags: [[131, 158, '高床倉庫', 'たかゆかそうこ'], [44, 50, '米', 'こめ']],
     h2: `${r('米', 'こめ')}づくり（${r('稲作', 'いなさく')}）が${r('広', 'ひろ')}まった。`,
     h3: `${r('卑弥呼', 'ひみこ')}・${r('邪馬台国', 'やまたいこく')}`,
-    svg: `<rect width="320" height="200" fill="#e3f0f7"/><rect y="140" width="320" height="60" fill="#8fbf5a"/>
-      <path d="M0 156 h320 M0 172 h320 M0 188 h320" stroke="#5f8f2f" stroke-width="7" stroke-dasharray="4 10"/>
-      <path d="M92 142 V100 M112 142 V100 M150 142 V100 M170 142 V100" stroke="#6d4c2f" stroke-width="6"/>
-      <path d="M84 108 h16 M104 108 h16 M142 108 h16 M162 108 h16" stroke="#4a321e" stroke-width="5"/>
-      <rect x="80" y="70" width="102" height="32" fill="#a1784a"/><path d="M84 78 h94 M84 88 h94" stroke="#7d5a32" stroke-width="2"/>
-      <path d="M66 74 L131 24 L196 74Z" fill="#c8a35a"/><path d="M110 40 L152 40" stroke="#8a6a38" stroke-width="5"/>
-      <path d="M196 142 L176 98 M206 142 L186 98 M192 133 h12 M186 120 h12 M180 107 h12" stroke="#6d4c2f" stroke-width="3"/>
-      <path d="M248 142 Q226 114 246 94 L248 82 L274 82 L276 94 Q296 114 274 142Z" fill="#d9a066"/><path d="M242 82 h38" stroke="#b07a40" stroke-width="5"/>
-      <path d="M26 142 Q30 112 46 96 M40 142 Q44 116 60 104" stroke="#b08a2a" stroke-width="3" fill="none"/>
-      <g fill="#e2b93b"><ellipse cx="46" cy="96" rx="4" ry="7"/><ellipse cx="40" cy="104" rx="4" ry="7"/><ellipse cx="60" cy="104" rx="4" ry="7"/><ellipse cx="54" cy="112" rx="4" ry="7"/></g>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><rect y="140" width="320" height="60" fill="${C.rokusho}" opacity=".7"/></g>
+      <path d="M0 156 h320 M0 172 h320 M0 188 h320" stroke="#2f5e43" stroke-width="6" stroke-dasharray="3 10" filter="url(#ink)"/>
+      ${kasumi(200, 22, 130)}
+      <g ${INK}>
+        <path d="M92 142 V100 M112 142 V100 M150 142 V100 M170 142 V100" stroke="${C.kuri}" stroke-width="6"/>
+        <path d="M84 108 h16 M104 108 h16 M142 108 h16 M162 108 h16" stroke-width="5"/>
+        <rect x="80" y="70" width="102" height="32" fill="#9a6e44"/><path d="M84 78 h94 M84 88 h94" stroke="#5e4022" stroke-width="1.5" fill="none"/>
+        <path d="M66 74 L131 24 L196 74Z" fill="${C.odo}"/><path d="M110 40 L152 40" stroke-width="5"/>
+        <path d="M196 142 L176 98 M206 142 L186 98 M192 133 h12 M186 120 h12 M180 107 h12" stroke="${C.kuri}" stroke-width="3"/>
+        <path d="M248 142 Q226 114 246 94 L248 82 L274 82 L276 94 Q296 114 274 142Z" fill="#c98a52"/><path d="M242 82 h38" stroke-width="5"/>
+        <path d="M26 142 Q30 112 46 96 M40 142 Q44 116 60 104" stroke="#8a6a1a" stroke-width="3" fill="none"/>
+        <g fill="${C.gold}" stroke-width="1"><ellipse cx="46" cy="96" rx="4" ry="7"/><ellipse cx="40" cy="104" rx="4" ry="7"/><ellipse cx="60" cy="104" rx="4" ry="7"/><ellipse cx="54" cy="112" rx="4" ry="7"/></g>
+      </g>` },
   { k: '古墳', y: 'こふん', from: '3世紀後半〜',
     tags: [[150, 166, '王のお墓（上から）', 'おうのおはか（うえから）'], [272, 36, 'はにわ']],
     h2: `${r('王', 'おう')}や${r('豪族', 'ごうぞく')}の${r('大', 'おお')}きなお${r('墓', 'はか')}がたくさん${r('作', 'つく')}られた。`,
     h3: `はにわ・${r('大仙古墳', 'だいせんこふん')}・${r('大和政権', 'やまとせいけん')}`,
-    svg: `<rect width="320" height="200" fill="#e4efd8"/>
-      <g fill="#7fb3d5"><circle cx="100" cy="100" r="66"/><path d="M100 50 L214 26 L214 174 L100 150Z"/></g>
-      <g fill="#4f8a3c"><circle cx="100" cy="100" r="52"/><path d="M100 62 L200 42 L200 158 L100 138Z"/></g>
-      <g fill="#3d6f2e"><circle cx="80" cy="86" r="6"/><circle cx="110" cy="76" r="5"/><circle cx="96" cy="118" r="7"/><circle cx="130" cy="104" r="5"/><circle cx="168" cy="72" r="6"/><circle cx="176" cy="126" r="6"/><circle cx="150" cy="96" r="5"/></g>
-      <path d="M262 196 L256 124 Q272 112 288 124 L282 196Z" fill="#d08a50"/>
-      <ellipse cx="272" cy="96" rx="18" ry="22" fill="#d08a50"/><path d="M254 90 Q272 66 290 90" stroke="#b56f38" stroke-width="5" fill="none"/>
-      <ellipse cx="265" cy="94" rx="3.5" ry="5" fill="#3b2414"/><ellipse cx="279" cy="94" rx="3.5" ry="5" fill="#3b2414"/><ellipse cx="272" cy="108" rx="4.5" ry="3.5" fill="#3b2414"/>
-      <path d="M258 136 Q240 126 240 108" stroke="#d08a50" stroke-width="9" stroke-linecap="round" fill="none"/>
-      <path d="M286 136 Q300 146 302 160" stroke="#d08a50" stroke-width="9" stroke-linecap="round" fill="none"/>` },
+    svg: `${BG}
+      <g filter="url(#wash)" fill="${C.gunjo}" opacity=".75"><circle cx="100" cy="100" r="66"/><path d="M100 50 L214 26 L214 174 L100 150Z"/></g>
+      <g ${INK}><path d="M128.3 56.3 L200 42 L200 158 L128.3 143.7 A52 52 0 1 1 128.3 56.3Z" fill="${C.rokusho}"/>
+        <g fill="#2f5e43" stroke-width="1"><circle cx="80" cy="86" r="6"/><circle cx="110" cy="76" r="5"/><circle cx="96" cy="118" r="7"/><circle cx="130" cy="104" r="5"/><circle cx="168" cy="72" r="6"/><circle cx="176" cy="126" r="6"/><circle cx="150" cy="96" r="5"/><circle cx="66" cy="110" r="5"/></g></g>
+      ${kasumi(-14, 10, 110)}
+      <g filter="url(#ink)">
+        ${limb('M258 136 Q240 126 240 108', '#c47a45')}${limb('M286 136 Q300 146 302 160', '#c47a45')}
+        <g stroke="${C.sumi}" stroke-width="1.5"><path d="M262 196 L256 124 Q272 112 288 124 L282 196Z" fill="#c47a45"/>
+        <ellipse cx="272" cy="96" rx="18" ry="22" fill="#c47a45"/><path d="M254 90 Q272 66 290 90" stroke="#8a4a22" stroke-width="5" fill="none"/>
+        <g fill="${C.sumi}"><ellipse cx="265" cy="94" rx="3.5" ry="5"/><ellipse cx="279" cy="94" rx="3.5" ry="5"/><ellipse cx="272" cy="108" rx="4.5" ry="3.5"/></g></g>
+      </g>` },
   { k: '奈良', y: 'なら', from: '710年〜',
     h2: `${r('都', 'みやこ')}は${r('平城京', 'へいじょうきょう')}。${r('仏教', 'ぶっきょう')}がさかんになった。`,
     h3: `710${r('年', 'ねん')}・${r('聖武天皇', 'しょうむてんのう')}・${r('東大寺', 'とうだいじ')}`,
-    svg: `<rect width="320" height="200" fill="#f3e2b3"/><ellipse cx="130" cy="100" rx="74" ry="88" fill="#d4a017" opacity=".55"/>
-      <path d="M68 186 Q74 112 130 106 Q186 112 192 186Z" fill="#5a4a3a"/>
-      <ellipse cx="101" cy="82" rx="5" ry="15" fill="#6b5a48"/><ellipse cx="159" cy="82" rx="5" ry="15" fill="#6b5a48"/>
-      <circle cx="130" cy="74" r="28" fill="#6b5a48"/><ellipse cx="130" cy="48" rx="13" ry="9" fill="#6b5a48"/>
-      <path d="M104 64 A28 28 0 0 1 156 64" stroke="#3e3226" stroke-width="9" stroke-dasharray="3 3" fill="none"/>
-      <path d="M116 76 q5 3 10 0 M134 76 q5 3 10 0 M124 90 q6 3 12 0" stroke="#2a1d12" stroke-width="2" fill="none"/><circle cx="130" cy="66" r="2" fill="#2a1d12"/>
-      <path d="M166 150 L170 114 Q177 104 184 114 L182 150Z" fill="#6b5a48"/>
-      <path d="M56 186 Q130 170 204 186 L204 200 L56 200Z" fill="#8a6d3b"/><rect y="192" width="320" height="8" fill="#8a6d3b"/>
-      <ellipse cx="264" cy="150" rx="28" ry="14" fill="#a0673a"/><path d="M282 146 L292 120 L301 122 L292 152Z" fill="#a0673a"/>
-      <ellipse cx="302" cy="118" rx="11" ry="6" fill="#a0673a"/><path d="M247 160 v30 M257 162 v28 M273 162 v28 M283 160 v30" stroke="#a0673a" stroke-width="5"/>
-      <g fill="#f3e2b3"><circle cx="252" cy="146" r="2.5"/><circle cx="264" cy="142" r="2.5"/><circle cx="276" cy="147" r="2.5"/><circle cx="260" cy="153" r="2.5"/></g>
-      <path d="M296 113 l-5 -14 l-7 3 M291 99 l2 -9 M303 112 l4 -15 l7 2" stroke="#6b4423" stroke-width="2.5" fill="none"/>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><ellipse cx="130" cy="100" rx="74" ry="88" fill="${C.gold}" opacity=".7"/><rect y="186" width="320" height="14" fill="${C.kuri}" opacity=".6"/></g>
+      <ellipse cx="130" cy="100" rx="74" ry="88" fill="none" stroke="${C.shu}" stroke-width="2" filter="url(#ink)"/>
+      ${kasumi(210, 28, 120)}
+      <g ${INK}>
+        <path d="M68 186 Q74 112 130 106 Q186 112 192 186Z" fill="#4e463c"/>
+        <ellipse cx="101" cy="82" rx="5" ry="15" fill="#5e5446"/><ellipse cx="159" cy="82" rx="5" ry="15" fill="#5e5446"/>
+        <circle cx="130" cy="74" r="28" fill="#5e5446"/><ellipse cx="130" cy="48" rx="13" ry="9" fill="#5e5446"/>
+        <path d="M104 64 A28 28 0 0 1 156 64" stroke="#2f2820" stroke-width="8" stroke-dasharray="3 3" fill="none"/>
+        <path d="M116 76 q5 3 10 0 M134 76 q5 3 10 0 M124 90 q6 3 12 0" stroke="#1a140e" stroke-width="2" fill="none"/><circle cx="130" cy="66" r="2" fill="${C.gold}"/>
+        <path d="M166 150 L170 114 Q177 104 184 114 L182 150Z" fill="#5e5446"/>
+        <path d="M56 186 Q130 170 204 186 L204 200 L56 200Z" fill="${C.kuri}"/>
+        ${limb('M247 160 v30 M257 162 v28 M273 162 v28 M283 160 v30', '#a86a3c', 5)}
+        <ellipse cx="264" cy="150" rx="28" ry="14" fill="#a86a3c"/><path d="M282 146 L292 120 L301 122 L292 152Z" fill="#a86a3c"/>
+        <ellipse cx="302" cy="118" rx="11" ry="6" fill="#a86a3c"/>
+        <g fill="${C.gofun}" stroke="none"><circle cx="252" cy="146" r="2.5"/><circle cx="264" cy="142" r="2.5"/><circle cx="276" cy="147" r="2.5"/><circle cx="260" cy="153" r="2.5"/></g>
+        <path d="M296 113 l-5 -14 l-7 3 M291 99 l2 -9 M303 112 l4 -15 l7 2" stroke="#5e3c22" stroke-width="2.5" fill="none"/>
+      </g>` },
   { k: '平安', y: 'へいあん', from: '794年〜',
     h2: `${r('貴族', 'きぞく')}の${r('時代', 'じだい')}。ひらがな・カタカナが${r('生', 'う')}まれた。`,
     h3: `794${r('年', 'ねん')} ${r('平安京', 'へいあんきょう')}・${r('紫式部', 'むらさきしきぶ')}『${r('源氏物語', 'げんじものがたり')}』`,
-    svg: `<rect width="320" height="200" fill="#f7ecef"/>
-      <g fill="#e9c46a" opacity=".55"><rect x="-20" y="24" width="96" height="18" rx="9"/><rect x="10" y="50" width="70" height="14" rx="7"/><rect x="246" y="30" width="96" height="18" rx="9"/><rect x="240" y="58" width="70" height="14" rx="7"/></g>
-      <path d="M116 62 Q114 18 160 14 Q206 18 204 62 L222 200 L98 200Z" fill="#1b1b1f"/>
-      <rect x="149" y="98" width="22" height="34" fill="#f6e6d6"/>
-      <path d="M62 200 Q70 140 128 124 L160 160 L192 124 Q250 140 258 200Z" fill="#d9707f"/>
-      <g fill="#f4c26b" opacity=".8"><circle cx="96" cy="170" r="5"/><circle cx="112" cy="190" r="4"/><circle cx="84" cy="192" r="3"/><circle cx="224" cy="168" r="5"/><circle cx="208" cy="188" r="4"/><circle cx="238" cy="190" r="3"/></g>
-      <g fill="none" stroke-linejoin="miter"><path d="M124 116 L160 166 L196 116" stroke="#6a2c80" stroke-width="30"/><path d="M124 116 L160 166 L196 116" stroke="#e76f51" stroke-width="22"/>
-        <path d="M124 116 L160 166 L196 116" stroke="#2a9d8f" stroke-width="15"/><path d="M124 116 L160 166 L196 116" stroke="#e9c46a" stroke-width="9"/><path d="M124 116 L160 166 L196 116" stroke="#fff" stroke-width="3"/></g>
-      <ellipse cx="160" cy="76" rx="28" ry="34" fill="#fbf3ea"/>
-      <path d="M131 76 Q126 32 160 28 Q194 32 189 76 Q186 50 160 44 Q134 50 131 76Z" fill="#1b1b1f"/><path d="M160 28 V44" stroke="#55555c" stroke-width="1.5"/>
-      <path d="M133 70 Q126 124 120 196 L134 196 Q140 124 143 82Z M187 70 Q194 124 200 196 L186 196 Q180 124 177 82Z" fill="#1b1b1f"/>
-      <ellipse cx="148" cy="54" rx="6.5" ry="3.5" fill="#6d6d74" opacity=".75"/><ellipse cx="172" cy="54" rx="6.5" ry="3.5" fill="#6d6d74" opacity=".75"/>
-      <path d="M140 78 Q148 71 156 78 Q148 82 140 78Z M164 78 Q172 71 180 78 Q172 82 164 78Z" fill="#fff"/>
-      <circle cx="148" cy="77.5" r="3.4" fill="#2a2420"/><circle cx="172" cy="77.5" r="3.4" fill="#2a2420"/><circle cx="149" cy="76.3" r="1" fill="#fff"/><circle cx="173" cy="76.3" r="1" fill="#fff"/>
-      <path d="M139 77 Q148 69 157 76 M163 76 Q172 69 181 77" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <ellipse cx="141" cy="88" rx="6" ry="3" fill="#f2a7b0" opacity=".6"/><ellipse cx="179" cy="88" rx="6" ry="3" fill="#f2a7b0" opacity=".6"/>
+    svg: `${BG}
+      ${kasumi(-20, 24, 100)}${kasumi(240, 34, 100)}${kasumi(-30, 120, 80)}
+      <g ${INK}>
+        <path d="M116 62 Q114 18 160 14 Q206 18 204 62 L222 200 L98 200Z" fill="#1d1a1c"/>
+        <rect x="149" y="98" width="22" height="34" fill="#f6e9da"/>
+        <path d="M62 200 Q70 140 128 124 L160 160 L192 124 Q250 140 258 200Z" fill="#b8505e"/>
+        <g fill="${C.gold}" stroke-width="1"><circle cx="96" cy="170" r="5"/><circle cx="112" cy="190" r="4"/><circle cx="84" cy="192" r="3"/><circle cx="224" cy="168" r="5"/><circle cx="208" cy="188" r="4"/><circle cx="238" cy="190" r="3"/></g>
+      </g>
+      <g fill="none" stroke-linejoin="miter" filter="url(#ink)"><path d="M124 116 L160 166 L196 116" stroke="${C.sumi}" stroke-width="33"/><path d="M124 116 L160 166 L196 116" stroke="#5b3a6e" stroke-width="30"/><path d="M124 116 L160 166 L196 116" stroke="${C.shu}" stroke-width="22"/>
+        <path d="M124 116 L160 166 L196 116" stroke="${C.rokusho}" stroke-width="15"/><path d="M124 116 L160 166 L196 116" stroke="${C.odo}" stroke-width="9"/><path d="M124 116 L160 166 L196 116" stroke="${C.gofun}" stroke-width="3"/></g>
+      <g ${INK}>
+        <ellipse cx="160" cy="76" rx="28" ry="34" fill="#fbf3ea"/>
+        <path d="M131 76 Q126 32 160 28 Q194 32 189 76 Q186 50 160 44 Q134 50 131 76Z" fill="#1d1a1c"/><path d="M160 28 V44" stroke="#55555c" fill="none"/>
+        <path d="M133 70 Q126 124 120 196 L134 196 Q140 124 143 82Z M187 70 Q194 124 200 196 L186 196 Q180 124 177 82Z" fill="#1d1a1c"/>
+      </g>
+      <g filter="url(#ink)">
+        <ellipse cx="148" cy="54" rx="6.5" ry="3.5" fill="#5e5e64" opacity=".75"/><ellipse cx="172" cy="54" rx="6.5" ry="3.5" fill="#5e5e64" opacity=".75"/>
+        <path d="M140 78 Q148 71 156 78 Q148 82 140 78Z M164 78 Q172 71 180 78 Q172 82 164 78Z" fill="#fff"/>
+        <circle cx="148" cy="77.5" r="3.4" fill="${C.sumi}"/><circle cx="172" cy="77.5" r="3.4" fill="${C.sumi}"/><circle cx="149" cy="76.3" r="1" fill="#fff"/><circle cx="173" cy="76.3" r="1" fill="#fff"/>
+        <path d="M139 77 Q148 69 157 76 M163 76 Q172 69 181 77" stroke="${C.sumi}" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <ellipse cx="141" cy="88" rx="6" ry="3" fill="#e08a8a" opacity=".5"/><ellipse cx="179" cy="88" rx="6" ry="3" fill="#e08a8a" opacity=".5"/>
+      </g>
       ${hiogi(160, 166, 36, 84)}` },
   { k: '鎌倉', y: 'かまくら', from: '1185年ごろ〜',
     tags: [[26, 166, '武士', 'ぶし'], [252, 172, '海の向こうの船', 'うみのむこうのふね']],
     h2: `${r('初', 'はじ')}めて${r('武士', 'ぶし')}が${r('政治', 'せいじ')}をした。${r('幕府', 'ばくふ')}ができた。`,
     h3: `${r('源頼朝', 'みなもとのよりとも')}・${r('元寇', 'げんこう')}（モンゴルが${r('攻', 'せ')}めてきた）`,
-    svg: `<rect width="320" height="200" fill="#d6e6f2"/><rect y="148" width="320" height="52" fill="#3a6ea5"/>
-      <path d="M150 162 q15 -8 30 0 q15 8 30 0 q15 -8 30 0 q15 8 30 0 q15 -8 30 0 M170 182 q15 -8 30 0 q15 8 30 0 q15 -8 30 0 q15 8 30 0" stroke="#d6e6f2" stroke-width="3" fill="none"/>
-      <path d="M198 150 L304 150 L288 170 L214 170Z" fill="#5a3e2b"/><path d="M252 150 V82" stroke="#5a3e2b" stroke-width="4"/>
-      <rect x="230" y="88" width="44" height="50" fill="#e9d8a6" stroke="#8a6d3b" stroke-width="2"/><path d="M230 100 h44 M230 112 h44 M230 124 h44" stroke="#8a6d3b"/>
-      <path d="M0 136 L156 150 L156 200 L0 200Z" fill="#c2a878"/>
-      <path d="M134 36 Q104 114 134 192" stroke="#5a3e2b" stroke-width="5" fill="none"/><path d="M134 36 V192" stroke="#ddd" stroke-width="1.5"/>
-      <rect x="62" y="170" width="13" height="22" fill="#333"/><rect x="87" y="170" width="13" height="22" fill="#333"/>
-      <path d="M54 144 L108 144 L114 172 L48 172Z" fill="#8b1e3f"/><path d="M52 156 h60 M50 166 h64" stroke="#e9c46a" stroke-width="2"/>
-      <rect x="56" y="98" width="50" height="48" rx="6" fill="#8b1e3f"/><path d="M56 108 h50 M56 118 h50 M56 128 h50 M56 138 h50" stroke="#e9c46a" stroke-width="2"/>
-      <rect x="36" y="98" width="22" height="38" rx="3" fill="#8b1e3f"/><rect x="104" y="98" width="22" height="38" rx="3" fill="#8b1e3f"/>
-      <path d="M38 108 h18 M38 118 h18 M38 128 h18 M106 108 h18 M106 118 h18 M106 128 h18" stroke="#e9c46a" stroke-width="2"/>
-      <path d="M60 78 Q81 42 102 78Z" fill="#333"/><path d="M54 78 L108 78 L114 90 L48 90Z" fill="#333"/>
-      <rect x="71" y="84" width="20" height="14" rx="4" fill="#f1c9a5"/><path d="M75 89 h4 M83 89 h4" stroke="#333" stroke-width="2"/>
-      <path d="M74 66 L60 36 M88 66 L102 36" stroke="#e9c46a" stroke-width="5" stroke-linecap="round"/>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><path d="M0 148 Q40 138 80 148 T160 148 T240 148 T320 148 V200 H0Z" fill="${C.gunjo}" opacity=".85"/><path d="M0 136 L156 150 L156 200 L0 200Z" fill="${C.odo}" opacity=".8"/></g>
+      <path d="M160 166 q12 -9 24 0 q12 -9 24 0 M240 160 q12 -9 24 0 q12 -9 24 0 M190 186 q12 -9 24 0 q12 -9 24 0 q12 -9 24 0" stroke="#e8e0cc" stroke-width="1.6" fill="none" filter="url(#ink)"/>
+      ${kasumi(150, 20, 170)}
+      <g ${INK}>
+        <path d="M198 150 L304 150 L288 170 L214 170Z" fill="#5e3c22"/><path d="M252 150 V82" stroke-width="3"/>
+        <rect x="230" y="88" width="44" height="50" fill="#d9c9a0"/><path d="M230 100 h44 M230 112 h44 M230 124 h44" fill="none"/>
+        <path d="M134 36 Q104 114 134 192" stroke-width="4" fill="none"/><path d="M134 36 V192" stroke="#8a7a60" stroke-width="1" fill="none"/>
+        <rect x="62" y="170" width="13" height="22" fill="${C.sumi}"/><rect x="87" y="170" width="13" height="22" fill="${C.sumi}"/>
+        <path d="M54 144 L108 144 L114 172 L48 172Z" fill="${C.rokusho}"/><path d="M52 156 h60 M50 166 h64" stroke="${C.shu}" stroke-width="2.2" fill="none"/>
+        <rect x="56" y="98" width="50" height="48" rx="4" fill="${C.shu}"/><path d="M56 108 h50 M56 118 h50 M56 128 h50 M56 138 h50" stroke="${C.odo}" stroke-width="1.6" fill="none"/>
+        <rect x="36" y="98" width="22" height="38" rx="2" fill="${C.shu}"/><rect x="104" y="98" width="22" height="38" rx="2" fill="${C.shu}"/>
+        <path d="M38 108 h18 M38 118 h18 M38 128 h18 M106 108 h18 M106 118 h18 M106 128 h18" stroke="${C.odo}" stroke-width="1.6" fill="none"/>
+        <rect x="71" y="80" width="20" height="18" rx="5" fill="${C.hada}"/><path d="M75 88 q2 -2 4 0 M83 88 q2 -2 4 0 M78 94 h6" stroke-width="1.2" fill="none"/>
+        <path d="M60 78 Q81 42 102 78Z" fill="${C.sumi}"/><path d="M54 78 L108 78 L114 88 L48 88Z" fill="${C.sumi}"/>
+        <path d="M81 58 L62 30 L76 56 M81 58 L100 30 L86 56" fill="${C.gold}"/>
+      </g>` },
   { k: '戦国', y: 'せんごく', from: '1467年ごろ〜',
     tags: [[88, 140, '鉄砲', 'てっぽう']],
     h2: `${r('武将', 'ぶしょう')}たちが${r('国', 'くに')}を${r('取', 'と')}り${r('合', 'あ')}った。${r('鉄砲', 'てっぽう')}が${r('伝', 'つた')}わった。`,
     h3: `${r('織田信長', 'おだのぶなが')}・${r('豊臣秀吉', 'とよとみひでよし')}`,
-    svg: `<rect width="320" height="200" fill="#fbd9a6"/><circle cx="250" cy="60" r="26" fill="#f4a261"/><rect y="186" width="320" height="14" fill="#7a5c3a"/>
-      <path d="M90 190 L110 140 L210 140 L230 190Z" fill="#8d8478"/><path d="M104 160 h112 M98 176 h124" stroke="#6f675c" stroke-width="2"/>
-      <rect x="116" y="116" width="88" height="24" fill="#fbfaf5"/><path d="M100 122 L120 104 L200 104 L220 122Z" fill="#2f3e46"/>
-      <rect x="128" y="86" width="64" height="20" fill="#fbfaf5"/><path d="M114 90 L132 72 L188 72 L206 90Z" fill="#2f3e46"/>
-      <rect x="140" y="58" width="40" height="16" fill="#fbfaf5"/><path d="M128 60 L148 42 L172 42 L192 60Z" fill="#2f3e46"/>
-      <circle cx="146" cy="40" r="4" fill="#e9c46a"/><circle cx="174" cy="40" r="4" fill="#e9c46a"/>
-      <g fill="#2f3e46"><rect x="130" y="124" width="8" height="8"/><rect x="156" y="124" width="8" height="8"/><rect x="182" y="124" width="8" height="8"/><rect x="146" y="92" width="7" height="7"/><rect x="167" y="92" width="7" height="7"/></g>
-      <path d="M30 60 V196 M58 72 V196 M276 92 V196 M300 80 V196" stroke="#5a3e2b" stroke-width="3"/>
-      <rect x="31" y="62" width="18" height="62" fill="#c1121f"/><rect x="59" y="74" width="18" height="62" fill="#1d3557"/>
-      <rect x="277" y="94" width="18" height="58" fill="#1d3557"/><rect x="301" y="82" width="18" height="58" fill="#c1121f"/>
-      <g fill="#fff"><circle cx="40" cy="80" r="5"/><circle cx="68" cy="92" r="5"/><circle cx="286" cy="112" r="5"/><circle cx="310" cy="100" r="5"/></g>
-      <path d="M8 196 L40 184" stroke="#5a3e2b" stroke-width="10" stroke-linecap="round"/><path d="M40 184 L118 156" stroke="#333" stroke-width="5"/>
-      <g fill="#fff" opacity=".85"><circle cx="128" cy="152" r="7"/><circle cx="138" cy="144" r="9"/><circle cx="150" cy="150" r="7"/></g>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><circle cx="250" cy="60" r="26" fill="${C.shu}" opacity=".75"/><rect y="186" width="320" height="14" fill="${C.kuri}" opacity=".7"/></g>
+      ${kasumi(-10, 30, 110)}${kasumi(196, 96, 70)}
+      <g ${INK}>
+        <path d="M90 190 L110 140 L210 140 L230 190Z" fill="#8a8070"/><path d="M104 160 h112 M98 176 h124" stroke="#5e564a" stroke-width="1.4" fill="none"/>
+        <rect x="116" y="116" width="88" height="24" fill="${C.gofun}"/><path d="M100 122 L120 104 L200 104 L220 122Z" fill="#3d4a52"/>
+        <rect x="128" y="86" width="64" height="20" fill="${C.gofun}"/><path d="M114 90 L132 72 L188 72 L206 90Z" fill="#3d4a52"/>
+        <rect x="140" y="58" width="40" height="16" fill="${C.gofun}"/><path d="M128 60 L148 42 L172 42 L192 60Z" fill="#3d4a52"/>
+        <g fill="${C.gold}" stroke-width="1"><circle cx="146" cy="40" r="4"/><circle cx="174" cy="40" r="4"/></g>
+        <g fill="${C.sumi}" stroke="none"><rect x="130" y="124" width="8" height="8"/><rect x="156" y="124" width="8" height="8"/><rect x="182" y="124" width="8" height="8"/><rect x="146" y="92" width="7" height="7"/><rect x="167" y="92" width="7" height="7"/></g>
+        <path d="M30 60 V196 M58 72 V196 M276 92 V196 M300 80 V196" stroke="${C.kuri}" stroke-width="3"/>
+        <rect x="31" y="62" width="18" height="62" fill="${C.shu}"/><rect x="59" y="74" width="18" height="62" fill="${C.gunjo}"/>
+        <rect x="277" y="94" width="18" height="58" fill="${C.gunjo}"/><rect x="301" y="82" width="18" height="58" fill="${C.shu}"/>
+        <g fill="${C.gofun}" stroke-width="1"><circle cx="40" cy="80" r="5"/><circle cx="68" cy="92" r="5"/><circle cx="286" cy="112" r="5"/><circle cx="310" cy="100" r="5"/></g>
+      </g>
+      <g filter="url(#ink)">${limb('M8 196 L40 184', C.kuri, 9)}${limb('M40 184 L118 156', '#4a4440', 4)}
+        <g fill="#fbf7ea" stroke="${C.sumi}" stroke-width=".8" opacity=".9"><circle cx="128" cy="152" r="7"/><circle cx="138" cy="144" r="9"/><circle cx="150" cy="150" r="7"/></g></g>` },
   { k: '江戸', y: 'えど', from: '1603年〜',
     h2: `${r('将軍', 'しょうぐん')}が260${r('年', 'ねん')}${r('治', 'おさ')}めた。${r('外国', 'がいこく')}との${r('行', 'い')}き${r('来', 'き')}を${r('制限', 'せいげん')}した（${r('鎖国', 'さこく')}）。`,
     h3: `1603${r('年', 'ねん')}・${r('徳川家康', 'とくがわいえやす')}・${r('浮世絵', 'うきよえ')}`,
-    svg: `<rect width="320" height="200" fill="#f2e8cf"/>
-      <path d="M150 152 L182 108 L214 152Z" fill="#2b4c7e"/><path d="M173 120 L182 108 L191 120 L186 117 L182 122 L178 117Z" fill="#fff"/>
-      <path d="M110 200 Q172 156 230 172 Q272 148 320 162 L320 200Z" fill="#2b5a8a"/>
-      <path d="M180 172 Q220 188 262 168" stroke="#e9d8a6" stroke-width="8" fill="none" stroke-linecap="round"/>
-      <path d="M0 200 L0 120 Q26 38 108 46 Q152 52 152 86 Q134 70 118 80 Q138 86 132 102 Q110 90 98 108 Q78 146 122 200Z" fill="#1d3f6e"/>
-      <path d="M108 46 Q152 52 152 86 Q142 74 128 78 Q138 68 120 60 Q90 52 62 66 Q84 46 108 46Z" fill="#fff"/>
-      <g fill="#fff"><circle cx="152" cy="88" r="4"/><circle cx="144" cy="80" r="3"/><circle cx="134" cy="102" r="3.5"/><circle cx="126" cy="94" r="2.5"/></g>
-      <path d="M14 172 Q40 120 80 112 M30 190 Q50 140 92 128" stroke="#7fa7d0" stroke-width="3" fill="none"/>
-      <rect x="282" y="12" width="26" height="36" fill="#c1121f"/><rect x="287" y="17" width="16" height="26" fill="none" stroke="#f2e8cf" stroke-width="2"/>` },
+    svg: `${BG}
+      <g filter="url(#wash)">
+        <path d="M150 112 L210 44 L270 112Z" fill="${C.gunjo}" opacity=".8"/>
+        <path d="M196 60 L210 44 L224 60 L217 56 L210 62 L203 56Z" fill="#fbf7ea"/>
+        <rect y="160" width="320" height="40" fill="${C.gunjo}" opacity=".85"/>
+        <path d="M0 132 Q20 126 40 150 L46 160 H0Z M320 132 Q300 126 280 150 L274 160 H320Z" fill="${C.kuri}" opacity=".7"/>
+      </g>
+      ${kasumi(10, 40, 130)}${kasumi(200, 120, 130)}
+      <g fill="none" stroke="${C.sumi}" stroke-width="1.6" stroke-linecap="round" filter="url(#ink)">
+        <path d="M150 112 L210 44 L270 112"/>
+        <path d="M30 172 q10 -8 20 0 q10 -8 20 0 M150 182 q10 -8 20 0 q10 -8 20 0 M250 174 q10 -8 20 0" stroke="#e8e0cc"/>
+        <path d="M10 150 Q160 92 310 150" stroke-width="3" stroke="${C.shu}"/>
+        <path d="M10 140 Q160 82 310 140" stroke-width="2.4"/>
+        <path d="M40 138 v20 M80 120 v24 M120 108 v26 M160 104 v26 M200 108 v26 M240 120 v24 M280 138 v20" stroke-width="1.8"/>
+      </g>
+      <g ${INK} stroke-width="1.3">
+        <circle cx="140" cy="92" r="6" fill="${C.hada}"/><path d="M128 90 Q140 76 152 90Z" fill="${C.odo}"/>
+        <path d="M132 98 L148 98 L152 124 L128 124Z" fill="${C.gunjo}"/>
+        <circle cx="178" cy="92" r="6" fill="${C.hada}"/><path d="M172 88 q6 -8 12 0" fill="${C.sumi}"/>
+        <path d="M170 98 L186 98 L190 124 L166 124Z" fill="${C.shu}"/>
+        <path d="M186 104 l10 -4 M196 98 v16" fill="none"/>
+        <ellipse cx="196" cy="118" rx="5" ry="7" fill="#f3b04a"/>
+      </g>
+      <g filter="url(#ink)"><rect x="282" y="12" width="24" height="34" fill="${C.shu}"/><rect x="286" y="16" width="16" height="26" fill="none" stroke="${C.paper}" stroke-width="1.6"/></g>` },
   { k: '明治', y: 'めいじ', from: '1868年〜',
     h2: `ちょんまげをやめて${r('洋服', 'ようふく')}を${r('着', 'き')}るようになった（${r('文明開化', 'ぶんめいかいか')}）。`,
     h3: `1868${r('年', 'ねん')}・${r('明治天皇', 'めいじてんのう')}・${r('新橋', 'しんばし')}〜${r('横浜', 'よこはま')}の${r('鉄道', 'てつどう')}`,
-    svg: `<rect width="320" height="200" fill="#dfe7ee"/>
-      <rect x="200" y="54" width="112" height="116" fill="#b5562e"/><path d="M200 70 h112 M200 90 h112 M200 110 h112 M200 130 h112 M200 150 h112" stroke="#93421f" stroke-width="2"/>
-      <rect x="240" y="26" width="32" height="30" fill="#b5562e"/><path d="M236 28 L256 10 L276 28Z" fill="#2f3e46"/><circle cx="256" cy="41" r="9" fill="#fff"/><path d="M256 41 V35 M256 41 h4" stroke="#333" stroke-width="2"/>
-      <g fill="#f6efe0"><path d="M214 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M248 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M282 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M214 146 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M282 146 v-16 a8 8 0 0 1 16 0 v16Z"/></g>
-      <path d="M190 172 V96" stroke="#333" stroke-width="4"/><path d="M182 96 h16 l-3 -16 h-10Z" fill="#333"/><rect x="185" y="82" width="10" height="11" fill="#ffd166"/>
-      <rect y="172" width="320" height="28" fill="#9a8f7f"/><path d="M0 176 h320" stroke="#555" stroke-width="4"/>
-      <g fill="#bbb"><circle cx="72" cy="78" r="12"/><circle cx="92" cy="58" r="16"/><circle cx="122" cy="42" r="20"/></g>
-      <rect x="40" y="120" width="100" height="40" rx="12" fill="#222"/><path d="M60 120 L55 94 L82 94 L77 120Z" fill="#222"/><rect x="92" y="108" width="14" height="12" rx="4" fill="#222"/>
-      <rect x="130" y="98" width="46" height="62" fill="#222"/><rect x="140" y="106" width="26" height="18" fill="#f6d365"/><rect x="124" y="94" width="58" height="8" fill="#333"/>
-      <path d="M40 152 L22 170 L46 170Z" fill="#c1121f"/>
-      <g fill="#333" stroke="#c1121f" stroke-width="4"><circle cx="66" cy="166" r="10"/><circle cx="98" cy="166" r="10"/><circle cx="150" cy="164" r="12"/></g>` },
+    svg: `${BG}
+      <g filter="url(#wash)"><rect y="172" width="320" height="28" fill="${C.kuri}" opacity=".6"/>
+        <g fill="#8a8580" opacity=".7"><circle cx="72" cy="78" r="12"/><circle cx="92" cy="58" r="16"/><circle cx="122" cy="40" r="20"/><circle cx="156" cy="28" r="16"/></g></g>
+      ${kasumi(-16, 14, 90)}
+      <g ${INK}>
+        <rect x="200" y="54" width="112" height="116" fill="#a5502c"/><path d="M200 70 h112 M200 90 h112 M200 110 h112 M200 130 h112 M200 150 h112" stroke="#6e3018" stroke-width="1.4" fill="none"/>
+        <rect x="240" y="26" width="32" height="30" fill="#a5502c"/><path d="M236 28 L256 10 L276 28Z" fill="#3d4a52"/><circle cx="256" cy="41" r="9" fill="${C.gofun}"/><path d="M256 41 V35 M256 41 h4" stroke-width="1.6" fill="none"/>
+        <g fill="${C.gofun}"><path d="M214 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M248 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M282 100 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M214 146 v-16 a8 8 0 0 1 16 0 v16Z"/><path d="M282 146 v-16 a8 8 0 0 1 16 0 v16Z"/></g>
+        <path d="M190 172 V96" stroke-width="4"/><path d="M182 96 h16 l-3 -16 h-10Z" fill="${C.sumi}"/><rect x="185" y="82" width="10" height="11" fill="#f3c04a"/>
+        <path d="M0 176 h320" stroke-width="3"/>
+        <rect x="40" y="120" width="100" height="40" rx="10" fill="#2e2a28"/><path d="M60 120 L55 94 L82 94 L77 120Z" fill="#2e2a28"/><rect x="92" y="108" width="14" height="12" rx="4" fill="#2e2a28"/>
+        <rect x="130" y="98" width="46" height="62" fill="#2e2a28"/><rect x="140" y="106" width="26" height="18" fill="#f3c04a"/><rect x="124" y="94" width="58" height="8" fill="#3d3836"/>
+        <path d="M40 152 L22 170 L46 170Z" fill="${C.shu}"/>
+        <g fill="#3d3836" stroke="${C.shu}" stroke-width="3.5"><circle cx="66" cy="166" r="10"/><circle cx="98" cy="166" r="10"/><circle cx="150" cy="164" r="12"/></g>
+      </g>` },
 ];
 
 const $ = id => document.getElementById(id);
